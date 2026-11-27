@@ -1,5 +1,5 @@
 /* ============================================================
-   FOCUSFLOW ULTRA — Full Playlist YouTube Player
+   FOCUSFLOW ULTRA v3.2 — FIXED
    ============================================================ */
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -16,14 +16,14 @@ const S = {
     ytQuality: 'default',
     ytAutoplay: true,
     ytShuffle: false,
-    ytRepeat: 0, // 0=off, 1=all, 2=one
-    ytQueue: [],       // [{id, title, channel, thumb, duration}]
-    ytIndex: -1,       // current index in queue
-    ytFavorites: [],   // [{type, id, name}]
+    ytRepeat: 0,
+    ytQueue: [],
+    ytIndex: -1,
     ytPos: { right: 24, bottom: 24 },
     ytSize: { width: 400 },
     ytPlaylistId: '',
-    ytLastLoaded: ''
+    ytLastLoaded: 'jfKfPfyJRdk',
+    ytLastName: 'Lofi Hip Hop Radio'
 };
 function loadState() {
     try {
@@ -34,10 +34,11 @@ function loadState() {
 function saveState() { localStorage.setItem('focusflow_ultra', JSON.stringify(S)); }
 
 /* ============================================================
-   NEBULA CANVAS
+   NEBULA
    ============================================================ */
 (function nebula() {
     const canvas = document.getElementById('nebula');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let W, H, particles = [], mouse = { x: -9999, y: -9999 };
     function resize() {
@@ -98,11 +99,9 @@ function saveState() { localStorage.setItem('focusflow_ultra', JSON.stringify(S)
     })();
 })();
 
-/* ============================================================
-   BUBBLES
-   ============================================================ */
 function spawnBubbles() {
     const wrap = $('#bubbles');
+    if (!wrap) return;
     for (let i = 0; i < 20; i++) {
         const b = document.createElement('div');
         b.className = 'bubble';
@@ -117,9 +116,6 @@ function spawnBubbles() {
     }
 }
 
-/* ============================================================
-   TOAST
-   ============================================================ */
 function toast(msg, type = 'info') {
     const icons = { info: '✨', success: '✅', warn: '⚠️', focus: '🎯', music: '🎵' };
     const el = document.createElement('div');
@@ -129,14 +125,9 @@ function toast(msg, type = 'info') {
     setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 3000);
 }
 
-/* ============================================================
-   LOADER
-   ============================================================ */
 addEventListener('load', () => setTimeout(() => $('#loader').classList.add('hide'), 1000));
 
-/* ============================================================
-   THEME
-   ============================================================ */
+/* THEME */
 $('#themeToggle').addEventListener('click', () => {
     document.body.classList.toggle('light');
     const light = document.body.classList.contains('light');
@@ -146,14 +137,8 @@ $('#themeToggle').addEventListener('click', () => {
         ? '<i class="fa-solid fa-sun"></i>'
         : '<i class="fa-solid fa-moon"></i>';
 });
-if (S.theme === 'light') {
-    document.body.classList.add('light');
-    $('#themeToggle').innerHTML = '<i class="fa-solid fa-sun"></i>';
-}
 
-/* ============================================================
-   FOCUS MODE
-   ============================================================ */
+/* FOCUS MODE */
 function toggleFocusMode() {
     document.body.classList.toggle('focus-mode');
     const on = document.body.classList.contains('focus-mode');
@@ -196,6 +181,7 @@ const TIP_RADIUS = 168;
 
 function buildTicks() {
     const g = $('#ticks');
+    if (!g) return;
     const cx = 200, cy = 200, rO = 190, rI = 182;
     for (let i = 0; i < 60; i++) {
         const a = (i / 60) * Math.PI * 2;
@@ -355,10 +341,9 @@ $('#customApply').addEventListener('click', () => {
 });
 
 /* ============================================================
-   YOUTUBE ULTRA PLAYER
+   YOUTUBE PLAYER — FIXED
    ============================================================ */
 const ytPlayer = $('#ytPlayer');
-const ytFrame = $('#ytFrame');
 const ytOverlay = $('#ytOverlay');
 const ytLoading = $('#ytLoading');
 const ytTitle = $('#ytTitle');
@@ -394,7 +379,18 @@ let progressInterval = null;
 let sleepInterval = null;
 let sleepRemaining = 0;
 
-/* ---- Load YT API ---- */
+/* ✅ FIX: Central overlay-hide helper */
+function hideOverlay() {
+    if (ytOverlay) {
+        ytOverlay.classList.add('hide');
+    }
+}
+function showOverlay() {
+    if (ytOverlay) {
+        ytOverlay.classList.remove('hide');
+    }
+}
+
 function loadYTAPI() {
     if (window.YT && window.YT.Player) { initYTPlayer(); return; }
     const tag = document.createElement('script');
@@ -425,6 +421,7 @@ function initYTPlayer() {
             onReady: (e) => {
                 ytIsReady = true;
                 ytLoading.classList.remove('show');
+                hideOverlay();  /* ✅ FIX #1 */
                 try {
                     ytApi.setVolume(S.ytVolume);
                     ytApi.setPlaybackRate(S.ytSpeed);
@@ -445,21 +442,25 @@ function initYTPlayer() {
                     ytPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
                     ytCenterPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
                     ytLoading.classList.remove('show');
+                    hideOverlay();  /* ✅ FIX #2 */
                 } else if (st === YT.PlayerState.PAUSED) {
                     ytIsPlaying = false;
                     ytPlayer.classList.remove('playing');
                     ytPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
                     ytCenterPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
+                    hideOverlay();  /* ✅ FIX #3 */
                 } else if (st === YT.PlayerState.ENDED) {
                     handleVideoEnd();
                 } else if (st === YT.PlayerState.BUFFERING) {
                     ytLoading.classList.add('show');
+                    hideOverlay();  /* ✅ FIX #4 */
+                } else if (st === YT.PlayerState.CUED) {
+                    hideOverlay();  /* ✅ FIX #5 */
                 }
             },
             onError: (e) => {
                 ytLoading.classList.remove('show');
                 console.warn('YT error', e.data);
-                // Skip to next on error
                 if (e.data === 100 || e.data === 101 || e.data === 150) {
                     toast('Video unavailable — skipping', 'warn');
                     setTimeout(() => nextVideo(), 800);
@@ -470,27 +471,20 @@ function initYTPlayer() {
         }
     };
 
-    // If first video, initialize with videoId. Otherwise use queue.
     if (S.ytQueue.length > 0 && S.ytIndex >= 0) {
         const item = S.ytQueue[S.ytIndex];
         playerConfig.videoId = item.id;
         ytApi = new YT.Player('ytFrame', playerConfig);
         updateNowPlaying(item);
     } else if (S.ytLastLoaded) {
-        // Try to load a single video ID directly
         const vid = extractVideoId(S.ytLastLoaded);
-        if (vid) {
-            playerConfig.videoId = vid;
-            ytApi = new YT.Player('ytFrame', playerConfig);
-        } else {
-            ytApi = new YT.Player('ytFrame', playerConfig);
-        }
+        if (vid) playerConfig.videoId = vid;
+        ytApi = new YT.Player('ytFrame', playerConfig);
     } else {
         ytApi = new YT.Player('ytFrame', playerConfig);
     }
 }
 
-/* ---- Progress loop ---- */
 function fmtTime(s) {
     if (!s || isNaN(s)) return '0:00';
     s = Math.floor(s);
@@ -522,7 +516,17 @@ function startProgressLoop() {
     }, 500);
 }
 
-/* ---- Seek ---- */
+/* ✅ FIX #6: Overlay click → instant hide + load */
+ytOverlay.addEventListener('click', () => {
+    hideOverlay();
+    ytLoading.classList.add('show');
+    if (!ytApi || !ytIsReady) {
+        loadYTAPI();
+    } else {
+        try { ytApi.playVideo(); } catch(e) {}
+    }
+});
+
 ytProgress.addEventListener('click', (e) => {
     if (!ytApi || !ytIsReady) return;
     const rect = ytProgress.getBoundingClientRect();
@@ -533,21 +537,15 @@ ytProgress.addEventListener('click', (e) => {
     } catch(err) {}
 });
 
-/* ---- Overlay init ---- */
-ytOverlay.addEventListener('click', () => {
-    loadYTAPI();
-});
-
-/* ---- Play/Pause ---- */
 function togglePlay() {
     if (!ytApi || !ytIsReady) { loadYTAPI(); return; }
+    hideOverlay();
     if (ytIsPlaying) ytApi.pauseVideo();
     else ytApi.playVideo();
 }
 ytPlayPause.addEventListener('click', togglePlay);
 ytCenterPlay.addEventListener('click', togglePlay);
 
-/* ---- Mute ---- */
 ytVolume.addEventListener('click', () => {
     if (!ytApi || !ytIsReady) return;
     if (ytIsMuted) {
@@ -561,7 +559,6 @@ ytVolume.addEventListener('click', () => {
     }
 });
 
-/* ---- Volume ---- */
 ytVolSlider.addEventListener('input', (e) => {
     const v = +e.target.value;
     S.ytVolume = v;
@@ -577,7 +574,6 @@ ytVolSlider.addEventListener('input', (e) => {
     }
 });
 
-/* ---- Expand ---- */
 function updateExpandIcon() {
     if (ytPlayer.classList.contains('minimized')) {
         ytExpand.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
@@ -591,8 +587,6 @@ ytExpand.addEventListener('click', () => {
     saveState();
     updateExpandIcon();
 });
-
-/* ---- Mini button ---- */
 $('#ytMiniBtn').addEventListener('click', () => {
     ytPlayer.classList.toggle('minimized');
     S.ytMinimized = ytPlayer.classList.contains('minimized');
@@ -600,7 +594,6 @@ $('#ytMiniBtn').addEventListener('click', () => {
     updateExpandIcon();
 });
 
-/* ---- Fullscreen ---- */
 ytFsBtn.addEventListener('click', () => {
     ytPlayer.classList.toggle('fullscreen');
     const fs = ytPlayer.classList.contains('fullscreen');
@@ -609,7 +602,6 @@ ytFsBtn.addEventListener('click', () => {
         : '<i class="fa-solid fa-expand"></i>';
 });
 
-/* ---- Close ---- */
 ytClose.addEventListener('click', () => {
     ytPlayer.classList.add('hidden-player');
     ytRestore.classList.add('show');
@@ -628,7 +620,7 @@ ytRestore.addEventListener('click', () => {
 });
 
 /* ============================================================
-   URL PARSER — Video / Playlist / Mix
+   URL PARSER
    ============================================================ */
 function extractVideoId(input) {
     if (!input) return null;
@@ -651,7 +643,6 @@ function extractVideoId(input) {
 function extractPlaylistId(input) {
     if (!input) return null;
     input = input.trim();
-    // Direct playlist ID
     if (/^(PL|UU|OL|FL|RD|LL)[a-zA-Z0-9_-]{10,}$/.test(input)) return input;
     const patterns = [
         /[?&]list=([a-zA-Z0-9_-]+)/,
@@ -665,9 +656,10 @@ function extractPlaylistId(input) {
 }
 
 /* ============================================================
-   QUEUE MANAGEMENT
+   QUEUE
    ============================================================ */
 function updateQueueUI() {
+    if (!ytQueueBadge) return;
     ytQueueBadge.textContent = S.ytQueue.length;
     ytQueueBadge.classList.toggle('show', S.ytQueue.length > 0);
     queueInfo.textContent = `${S.ytQueue.length} video${S.ytQueue.length !== 1 ? 's' : ''} in queue`;
@@ -691,19 +683,16 @@ function updateQueueUI() {
         </div>
     `).join('');
 
-    // Bind clicks
     $$('.yt-q-item').forEach(el => {
         el.addEventListener('click', (e) => {
             if (e.target.closest('.yt-q-del')) return;
-            const idx = +el.dataset.idx;
-            loadQueueItem(idx);
+            loadQueueItem(+el.dataset.idx);
         });
     });
     $$('.yt-q-del').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const idx = +btn.dataset.idx;
-            removeFromQueue(idx);
+            removeFromQueue(+btn.dataset.idx);
         });
     });
 }
@@ -711,9 +700,7 @@ function updateQueueUI() {
 function addToQueue(items) {
     if (!Array.isArray(items)) items = [items];
     items.forEach(item => {
-        if (!S.ytQueue.some(q => q.id === item.id)) {
-            S.ytQueue.push(item);
-        }
+        if (!S.ytQueue.some(q => q.id === item.id)) S.ytQueue.push(item);
     });
     saveState();
     updateQueueUI();
@@ -723,28 +710,29 @@ function addToQueue(items) {
 function removeFromQueue(idx) {
     S.ytQueue.splice(idx, 1);
     if (idx < S.ytIndex) S.ytIndex--;
-    else if (idx === S.ytIndex) {
-        S.ytIndex = Math.min(S.ytIndex, S.ytQueue.length - 1);
-    }
+    else if (idx === S.ytIndex) S.ytIndex = Math.min(S.ytIndex, S.ytQueue.length - 1);
     saveState();
     updateQueueUI();
 }
 
+/* ✅ FIX #7: loadQueueItem hides overlay */
 function loadQueueItem(idx, play = true) {
     if (idx < 0 || idx >= S.ytQueue.length) return;
     S.ytIndex = idx;
     const item = S.ytQueue[idx];
     saveState();
 
+    hideOverlay();
+    ytLoading.classList.add('show');
+
     if (!ytApi) {
         loadYTAPI();
-        // After API init, we'll handle in onReady
     } else if (ytIsReady) {
         try {
             ytApi.loadVideoById(item.id);
             if (play) ytApi.playVideo();
         } catch(err) {
-            console.warn('loadVideoById failed, fallback', err);
+            console.warn('loadVideoById failed', err);
         }
     }
     updateNowPlaying(item);
@@ -758,34 +746,17 @@ function updateNowPlaying(item) {
     ytIdx.textContent = S.ytQueue.length > 0 ? `${S.ytIndex + 1}/${S.ytQueue.length}` : '';
 }
 
-/* ============================================================
-   AUTO-NEXT / PREV / SHUFFLE / REPEAT
-   ============================================================ */
 function handleVideoEnd() {
     ytIsPlaying = false;
     ytPlayer.classList.remove('playing');
 
     if (S.ytRepeat === 2) {
-        // Repeat one
         try { ytApi.seekTo(0); ytApi.playVideo(); } catch(e) {}
         return;
     }
-
-    if (S.ytShuffle) {
-        playRandom();
-        return;
-    }
-
-    if (S.ytAutoplay && S.ytQueue.length > 1) {
-        nextVideo();
-        return;
-    }
-
-    if (S.ytRepeat === 1) {
-        // Repeat all
-        nextVideo();
-        return;
-    }
+    if (S.ytShuffle) { playRandom(); return; }
+    if (S.ytAutoplay && S.ytQueue.length > 1) { nextVideo(); return; }
+    if (S.ytRepeat === 1) { nextVideo(); return; }
 
     ytPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
     ytCenterPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
@@ -810,15 +781,10 @@ function nextVideo() {
 
 function prevVideo() {
     if (S.ytQueue.length === 0) return;
-    // If >3s played, restart
     try {
         const cur = ytApi?.getCurrentTime() || 0;
-        if (cur > 3) {
-            ytApi.seekTo(0);
-            return;
-        }
+        if (cur > 3) { ytApi.seekTo(0); return; }
     } catch(e) {}
-
     let prevIdx = S.ytIndex - 1;
     if (prevIdx < 0) prevIdx = S.ytQueue.length - 1;
     loadQueueItem(prevIdx);
@@ -832,7 +798,6 @@ function playRandom() {
     loadQueueItem(randIdx);
 }
 
-/* Transport buttons */
 $('#ytNextBtn').addEventListener('click', () => { nextVideo(); toast('Next ▶', 'music'); });
 $('#ytPrevBtn').addEventListener('click', () => { prevVideo(); toast('Previous ◀', 'music'); });
 $('#ytShuffleBtn').addEventListener('click', () => {
@@ -845,8 +810,7 @@ $('#ytRepeatBtn').addEventListener('click', () => {
     S.ytRepeat = (S.ytRepeat + 1) % 3;
     saveState();
     updateRepeatUI();
-    const labels = ['Repeat OFF', 'Repeat ALL', 'Repeat ONE'];
-    toast(labels[S.ytRepeat], 'info');
+    toast(['Repeat OFF', 'Repeat ALL', 'Repeat ONE'][S.ytRepeat], 'info');
 });
 function updateRepeatUI() {
     const btn = $('#ytRepeatBtn');
@@ -855,34 +819,32 @@ function updateRepeatUI() {
 }
 
 /* ============================================================
-   SEARCH — Video/Playlist Load
+   LOAD
    ============================================================ */
 function loadFromUrl(input) {
     const playlistId = extractPlaylistId(input);
     const videoId = extractVideoId(input);
 
-    if (playlistId) {
-        loadPlaylist(playlistId);
-    } else if (videoId) {
-        loadSingleVideo(videoId);
-    } else {
-        toast('Invalid YouTube URL', 'warn');
-        return false;
-    }
-    return true;
+    if (playlistId) { loadPlaylist(playlistId); return true; }
+    if (videoId) { loadSingleVideo(videoId); return true; }
+    toast('Invalid YouTube URL', 'warn');
+    return false;
 }
 
+/* ✅ FIX #8: loadPlaylist hides overlay */
 function loadPlaylist(playlistId) {
     S.ytPlaylistId = playlistId;
     saveState();
     toast('Loading playlist…', 'info');
 
-    // Use YouTube IFrame API playlist mode
     if (!ytApi || !ytIsReady) {
         loadYTAPI();
         setTimeout(() => loadPlaylist(playlistId), 1500);
         return;
     }
+
+    hideOverlay();
+    ytLoading.classList.add('show');
 
     try {
         ytApi.loadPlaylist({
@@ -894,7 +856,6 @@ function loadPlaylist(playlistId) {
         });
         ytTitle.textContent = 'Playlist loaded';
         ytIdx.textContent = '🎵 PL';
-        // Clear old queue (playlist will play via API)
         S.ytQueue = [];
         S.ytIndex = -1;
         saveState();
@@ -906,12 +867,17 @@ function loadPlaylist(playlistId) {
     }
 }
 
+/* ✅ FIX #9: loadSingleVideo hides overlay */
 function loadSingleVideo(videoId) {
     if (!ytApi || !ytIsReady) {
+        S.ytLastLoaded = videoId;
+        saveState();
         loadYTAPI();
         setTimeout(() => loadSingleVideo(videoId), 1500);
         return;
     }
+    hideOverlay();
+    ytLoading.classList.add('show');
     try {
         ytApi.loadVideoById(videoId);
         S.ytQueue = [{ id: videoId, title: 'Custom video', channel: 'YouTube' }];
@@ -926,7 +892,6 @@ function loadSingleVideo(videoId) {
     }
 }
 
-/* Search input */
 $('#ytSearchBtn').addEventListener('click', () => {
     const input = $('#ytSearchInput').value;
     if (input) loadFromUrl(input);
@@ -934,8 +899,6 @@ $('#ytSearchBtn').addEventListener('click', () => {
 $('#ytSearchInput').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') $('#ytSearchBtn').click();
 });
-
-/* Load tab */
 $('#ytLoadBtn').addEventListener('click', () => {
     const input = $('#ytUrlInput').value;
     if (loadFromUrl(input)) $('#ytUrlInput').value = '';
@@ -944,7 +907,7 @@ $('#ytAddQueueBtn').addEventListener('click', () => {
     const input = $('#ytUrlInput').value;
     const vid = extractVideoId(input);
     if (!vid) {
-        toast('Only single videos can be added to queue', 'warn');
+        toast('Only single videos can be added', 'warn');
         return;
     }
     addToQueue({ id: vid, title: 'Custom video', channel: 'YouTube' });
@@ -952,7 +915,7 @@ $('#ytAddQueueBtn').addEventListener('click', () => {
 });
 
 /* ============================================================
-   PLAYLIST / VIDEO PRESETS
+   PRESETS
    ============================================================ */
 function setActiveChip(chip) {
     $$('.yt-chip').forEach(c => c.classList.remove('active'));
@@ -972,12 +935,14 @@ $$('.yt-chip').forEach(chip => {
         } else {
             S.ytQueue = [{ id, title: name, channel: 'YouTube' }];
             S.ytIndex = 0;
+            S.ytLastLoaded = id;
+            S.ytLastName = name;
             saveState();
             if (!ytApi || !ytIsReady) {
                 loadYTAPI();
-                S.ytLastLoaded = id;
-                saveState();
             } else {
+                hideOverlay();
+                ytLoading.classList.add('show');
                 ytApi.loadVideoById(id);
                 updateNowPlaying({ title: name });
             }
@@ -987,9 +952,7 @@ $$('.yt-chip').forEach(chip => {
     });
 });
 
-/* ============================================================
-   TABS
-   ============================================================ */
+/* TABS */
 $$('.yt-tab').forEach(tab => {
     tab.addEventListener('click', () => {
         const name = tab.dataset.tab;
@@ -1000,9 +963,7 @@ $$('.yt-tab').forEach(tab => {
     });
 });
 
-/* ============================================================
-   SPEED CONTROL
-   ============================================================ */
+/* SPEED */
 $$('.yt-speed-btns button').forEach(btn => {
     btn.addEventListener('click', () => {
         const speed = +btn.dataset.speed;
@@ -1017,16 +978,11 @@ $$('.yt-speed-btns button').forEach(btn => {
     });
 });
 
-/* ============================================================
-   SLEEP TIMER
-   ============================================================ */
+/* SLEEP */
 ytSleepTimer.addEventListener('change', () => {
     clearInterval(sleepInterval);
     sleepRemaining = (+ytSleepTimer.value) * 60;
-    if (sleepRemaining === 0) {
-        ytSleepCountdown.textContent = '';
-        return;
-    }
+    if (sleepRemaining === 0) { ytSleepCountdown.textContent = ''; return; }
     updateSleepDisplay();
     sleepInterval = setInterval(() => {
         sleepRemaining--;
@@ -1046,38 +1002,27 @@ function updateSleepDisplay() {
     ytSleepCountdown.textContent = `${m}:${String(s).padStart(2,'0')}`;
 }
 
-/* ============================================================
-   AUTOPLAY SWITCH
-   ============================================================ */
+/* AUTOPLAY */
 $('#autoplaySwitch').addEventListener('click', () => {
     S.ytAutoplay = !S.ytAutoplay;
     saveState();
     $('#autoplaySwitch').classList.toggle('active', S.ytAutoplay);
     toast(`Autoplay ${S.ytAutoplay ? 'ON' : 'OFF'}`, 'info');
 });
-if (S.ytAutoplay) $('#autoplaySwitch').classList.add('active');
 
-/* ============================================================
-   QUALITY
-   ============================================================ */
+/* QUALITY */
 $('#ytQuality').addEventListener('change', (e) => {
     S.ytQuality = e.target.value;
     saveState();
     if (ytApi && ytIsReady) {
         try {
-            if (e.target.value === 'default') {
-                ytApi.setPlaybackQuality('default');
-            } else {
-                ytApi.setPlaybackQuality(e.target.value);
-            }
+            ytApi.setPlaybackQuality(e.target.value === 'default' ? 'default' : e.target.value);
         } catch(err) {}
     }
     toast(`Quality: ${e.target.value}`, 'info');
 });
 
-/* ============================================================
-   QUEUE CLEAR
-   ============================================================ */
+/* QUEUE CLEAR */
 $('#queueClearBtn').addEventListener('click', () => {
     if (S.ytQueue.length === 0) return;
     S.ytQueue = [];
@@ -1088,7 +1033,7 @@ $('#queueClearBtn').addEventListener('click', () => {
 });
 
 /* ============================================================
-   DRAG PLAYER
+   DRAG
    ============================================================ */
 let dragState = null;
 ytDragbar.addEventListener('mousedown', (e) => {
@@ -1118,16 +1063,11 @@ document.addEventListener('mouseup', () => {
     if (dragState) { dragState = null; saveState(); }
 });
 
-/* ============================================================
-   RESIZE PLAYER
-   ============================================================ */
+/* RESIZE */
 let resizeState = null;
 ytResize.addEventListener('mousedown', (e) => {
     if (ytPlayer.classList.contains('fullscreen')) return;
-    resizeState = {
-        startX: e.clientX,
-        startWidth: ytPlayer.offsetWidth
-    };
+    resizeState = { startX: e.clientX, startWidth: ytPlayer.offsetWidth };
     e.preventDefault(); e.stopPropagation();
 });
 document.addEventListener('mousemove', (e) => {
@@ -1142,18 +1082,14 @@ document.addEventListener('mouseup', () => {
     if (resizeState) { resizeState = null; saveState(); }
 });
 
-/* ============================================================
-   UTIL
-   ============================================================ */
+/* UTIL */
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     }[c]));
 }
 
-/* ============================================================
-   KEYBOARD
-   ============================================================ */
+/* KEYBOARD */
 document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
         if (e.key === 'Escape') e.target.blur();
@@ -1197,7 +1133,6 @@ function init() {
     setMode('focus');
     renderTime();
 
-    // Restore player state
     if (S.ytHidden) {
         ytPlayer.classList.add('hidden-player');
         ytRestore.classList.add('show');
@@ -1219,31 +1154,30 @@ function init() {
     updateRepeatUI();
     updateQueueUI();
 
-    // Restore shuffle button
     if (S.ytShuffle) $('#ytShuffleBtn').classList.add('active');
 
-    // Restore speed button
     $$('.yt-speed-btns button').forEach(b => {
         b.classList.toggle('active', +b.dataset.speed === S.ytSpeed);
     });
 
-    // Restore quality
     $('#ytQuality').value = S.ytQuality;
+    if (S.ytAutoplay) $('#autoplaySwitch').classList.add('active');
 
-    // Load YouTube API
+    // ✅ FIX #10: SAFETY failsafe — hide overlay after delay no matter what
+    setTimeout(() => {
+        if (ytIsReady || ytApi) hideOverlay();
+    }, 2500);
+    setTimeout(() => {
+        hideOverlay();
+    }, 6000);
+
     loadYTAPI();
 
-    // If queue exists, load first video
     if (S.ytQueue.length > 0 && S.ytIndex >= 0) {
         updateNowPlaying(S.ytQueue[S.ytIndex]);
-    } else if (S.ytLastLoaded) {
-        // Load last default
-        setTimeout(() => {
-            if (!ytApi) return;
-        }, 2000);
     }
 }
 init();
 
-console.log('%c⚡ FocusFlow ULTRA loaded', 'background:linear-gradient(90deg,#7c5cff,#00d4ff,#00ffa3);color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;font-size:14px;');
+console.log('%c⚡ FocusFlow ULTRA v3.2 — FIXED', 'background:linear-gradient(90deg,#7c5cff,#00d4ff,#00ffa3);color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;font-size:14px;');
 console.log('Shortcuts → SPACE:timer  R:reset  F:focus  T:theme  M:play  N:next  P:prev  S:shuffle  Y:min  H:hide  ESC:exit');
