@@ -7,7 +7,7 @@
 <title>FocusFlow ULTRA — Playlist Player</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=3.2">
 </head>
 <body>
 
@@ -130,26 +130,24 @@
     </section>
 </main>
 
-<!-- ============ YOUTUBE PLAYER — ULTRA ============ -->
+<!-- ============ YOUTUBE PLAYER ============ -->
 <div class="yt-player" id="ytPlayer">
 
-    <!-- Drag bar -->
     <div class="yt-dragbar" id="ytDragbar">
         <div class="yt-dots"><span></span><span></span><span></span></div>
-        <div class="yt-drag-label" id="ytDragLabel">DRAG ME</div>
+        <div class="yt-drag-label">DRAG ME</div>
         <div class="yt-drag-actions">
-            <button class="yt-mini-btn" id="ytMiniBtn" title="Mini mode">
+            <button class="yt-mini-btn" id="ytMiniBtn" title="Minimize">
                 <i class="fa-solid fa-compress"></i>
             </button>
         </div>
     </div>
 
-    <!-- Video frame -->
     <div class="yt-frame-wrap" id="ytFrameWrap">
         <div id="ytFrame"></div>
         <div class="yt-overlay" id="ytOverlay">
             <i class="fa-brands fa-youtube"></i>
-            <span>Click to load player</span>
+            <span>Tap to start music</span>
         </div>
         <div class="yt-loading" id="ytLoading">
             <div class="yt-spinner"></div>
@@ -160,45 +158,42 @@
         <div class="yt-title-overlay" id="ytTitleOverlay"></div>
     </div>
 
-    <!-- Progress -->
     <div class="yt-progress" id="ytProgress">
         <div class="yt-progress-buffer" id="ytProgressBuffer"></div>
         <div class="yt-progress-fill" id="ytProgressFill"></div>
     </div>
 
-    <!-- Info bar -->
     <div class="yt-bar">
         <div class="yt-logo">
             <i class="fa-brands fa-youtube"></i>
             <div class="yt-live-ring"></div>
         </div>
         <div class="yt-meta">
-            <div class="yt-title" id="ytTitle">Loading playlist…</div>
+            <div class="yt-title" id="ytTitle">Ready to play</div>
             <div class="yt-sub">
                 <span id="ytCurTime">0:00</span> / <span id="ytDurTime">0:00</span>
                 <span class="yt-idx" id="ytIdx"></span>
             </div>
         </div>
         <div class="yt-actions">
-            <button class="yt-btn" id="ytPlayPause" title="Play/Pause (M)"><i class="fa-solid fa-pause"></i></button>
+            <button class="yt-btn" id="ytPlayPause" title="Play/Pause (M)"><i class="fa-solid fa-play"></i></button>
             <button class="yt-btn" id="ytVolume" title="Mute"><i class="fa-solid fa-volume-high"></i></button>
             <button class="yt-btn" id="ytExpand" title="Expand (Y)"><i class="fa-solid fa-chevron-up"></i></button>
             <button class="yt-btn close" id="ytClose" title="Hide (H)"><i class="fa-solid fa-xmark"></i></button>
         </div>
     </div>
 
-    <!-- Transport (prev / next / shuffle / repeat) -->
     <div class="yt-transport">
-        <button class="yt-tr-btn" id="ytShuffleBtn" title="Shuffle">
+        <button class="yt-tr-btn" id="ytShuffleBtn" title="Shuffle (S)">
             <i class="fa-solid fa-shuffle"></i>
         </button>
-        <button class="yt-tr-btn" id="ytPrevBtn" title="Previous">
+        <button class="yt-tr-btn" id="ytPrevBtn" title="Previous (P)">
             <i class="fa-solid fa-backward-step"></i>
         </button>
         <button class="yt-tr-btn big" id="ytCenterPlay" title="Play/Pause">
-            <i class="fa-solid fa-pause"></i>
+            <i class="fa-solid fa-play"></i>
         </button>
-        <button class="yt-tr-btn" id="ytNextBtn" title="Next">
+        <button class="yt-tr-btn" id="ytNextBtn" title="Next (N)">
             <i class="fa-solid fa-forward-step"></i>
         </button>
         <button class="yt-tr-btn" id="ytRepeatBtn" title="Repeat">
@@ -206,10 +201,8 @@
         </button>
     </div>
 
-    <!-- Expanded controls -->
     <div class="yt-expanded-controls" id="ytExpandedControls">
 
-        <!-- Tabs -->
         <div class="yt-tabs">
             <button class="yt-tab active" data-tab="playlists">
                 <i class="fa-solid fa-list"></i> Playlists
@@ -219,24 +212,23 @@
                 <span class="yt-badge" id="queueBadge">0</span>
             </button>
             <button class="yt-tab" data-tab="load">
-                <i class="fa-solid fa-link"></i> Load URL
+                <i class="fa-solid fa-link"></i> Load
             </button>
             <button class="yt-tab" data-tab="settings">
                 <i class="fa-solid fa-sliders"></i> Settings
             </button>
         </div>
 
-        <!-- Playlists tab -->
         <div class="yt-tab-content active" data-tab="playlists">
             <div class="yt-search-wrap">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="ytSearchInput" placeholder="Paste YouTube playlist or video URL…">
+                <input type="text" id="ytSearchInput" placeholder="Paste YouTube URL or search…">
                 <button id="ytSearchBtn"><i class="fa-solid fa-arrow-right"></i></button>
             </div>
             <div class="yt-preset-groups">
                 <div class="yt-group-label">📚 Study Playlists</div>
                 <div class="yt-presets" id="ytPresets">
-                    <button class="yt-chip active" data-type="playlist" data-id="PLOzDu-MXXLliO9fBNZOQTAm1qAE1n6U7" data-name="Lo-Fi Study Session">
+                    <button class="yt-chip" data-type="playlist" data-id="PLOzDu-MXXLliO9fBNZOQTAm1qAE1n6U7" data-name="Lo-Fi Study Session">
                         <i class="fa-solid fa-headphones"></i> Lo-Fi Study
                     </button>
                     <button class="yt-chip" data-type="playlist" data-id="PLOzDu-MXXLlva9O-sZ7rLhEQ6jVJFnQOb" data-name="Deep Focus">
@@ -255,7 +247,7 @@
 
                 <div class="yt-group-label">🎵 Single Videos</div>
                 <div class="yt-presets" id="ytVideoPresets">
-                    <button class="yt-chip" data-type="video" data-id="jfKfPfyJRdk" data-name="Lo-Fi Hip Hop Radio">
+                    <button class="yt-chip" data-type="video" data-id="jfKfPfyJRdk" data-name="Lofi Hip Hop Radio">
                         <i class="fa-solid fa-radio"></i> Lofi Radio
                     </button>
                     <button class="yt-chip" data-type="video" data-id="lTRiuFIWV54" data-name="Deep Focus Music">
@@ -271,15 +263,9 @@
                         <i class="fa-solid fa-music"></i> Piano
                     </button>
                 </div>
-
-                <div class="yt-group-label">❤️ Favorites</div>
-                <div class="yt-presets" id="ytFavorites">
-                    <div class="yt-empty-mini">No favorites yet — click ❤️ on any video</div>
-                </div>
             </div>
         </div>
 
-        <!-- Queue tab -->
         <div class="yt-tab-content" data-tab="queue">
             <div class="yt-queue-header">
                 <span id="queueInfo">0 videos in queue</span>
@@ -294,7 +280,6 @@
             </div>
         </div>
 
-        <!-- Load URL tab -->
         <div class="yt-tab-content" data-tab="load">
             <div class="yt-load-help">
                 <p><i class="fa-solid fa-circle-info"></i> Paste any of these:</p>
@@ -303,7 +288,7 @@
                 <code>youtu.be/xxxxx</code>
                 <code>Video ID: xxxxxxxxxxx</code>
             </div>
-            <textarea id="ytUrlInput" placeholder="Paste YouTube URL or playlist ID here…" rows="3"></textarea>
+            <textarea id="ytUrlInput" placeholder="Paste YouTube URL or playlist ID…" rows="3"></textarea>
             <div class="yt-load-actions">
                 <button class="yt-btn-primary" id="ytLoadBtn">
                     <i class="fa-solid fa-download"></i> Load
@@ -314,11 +299,10 @@
             </div>
             <div class="yt-load-hint">
                 <i class="fa-solid fa-lightbulb"></i>
-                <span>Tip: Playlist will start from first video. Use shuffle for random order.</span>
+                <span>Tip: Playlist starts from first video. Use shuffle for random order.</span>
             </div>
         </div>
 
-        <!-- Settings tab -->
         <div class="yt-tab-content" data-tab="settings">
             <div class="yt-setting">
                 <label>Volume</label>
@@ -359,15 +343,15 @@
             </div>
 
             <div class="yt-setting">
-                <label>Autoplay next video</label>
+                <label>Autoplay next</label>
                 <div class="yt-switch-row">
-                    <span>Automatically play next in queue</span>
+                    <span>Auto-play next in queue</span>
                     <button class="yt-switch active" id="autoplaySwitch"></button>
                 </div>
             </div>
 
             <div class="yt-setting">
-                <label>Video quality</label>
+                <label>Quality</label>
                 <select id="ytQuality">
                     <option value="default">Auto</option>
                     <option value="hd1080">1080p</option>
@@ -383,15 +367,13 @@
     <div class="yt-resize" id="ytResize"></div>
 </div>
 
-<!-- Restore button -->
 <button class="yt-restore" id="ytRestore" title="Restore player (Y)">
     <i class="fa-brands fa-youtube"></i>
 </button>
 
-<!-- Toast -->
 <div class="toast-stack" id="toastStack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=3.2"></script>
 </body>
 </html>
