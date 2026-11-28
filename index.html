@@ -7,11 +7,10 @@
 <title>FocusFlow ULTRA — Ad-Free Player</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=3.3">
+<link rel="stylesheet" href="css/style.css?v=3.4">
 </head>
 <body>
 
-<!-- BACKGROUND -->
 <canvas id="nebula"></canvas>
 <div class="aurora aurora-1"></div>
 <div class="aurora aurora-2"></div>
@@ -20,13 +19,11 @@
 <div class="noise"></div>
 <div class="vignette"></div>
 
-<!-- AD BLOCK BADGE -->
 <div class="adblock-badge" id="adBlockBadge">
     <i class="fa-solid fa-shield-halved"></i>
     <span>AD-FREE</span>
 </div>
 
-<!-- LOADER -->
 <div id="loader">
     <div class="loader-inner">
         <div class="loader-orb">
@@ -40,7 +37,6 @@
     </div>
 </div>
 
-<!-- TOPBAR -->
 <header class="topbar">
     <div class="brand">
         <div class="brand-mark"><i class="fa-solid fa-wave-square"></i></div>
@@ -48,16 +44,15 @@
     </div>
     <div class="top-actions">
         <button class="icon-btn" id="themeToggle" title="Theme (T)"><i class="fa-solid fa-moon"></i></button>
+        <button class="icon-btn" id="apiKeyBtn" title="API Settings"><i class="fa-solid fa-key"></i></button>
         <button class="icon-btn" id="focusModeBtn" title="Focus Mode (F)"><i class="fa-solid fa-expand"></i></button>
     </div>
 </header>
 
-<!-- CLOCK -->
 <main class="dash" id="dash">
     <section class="clock-stage" id="clockStage">
         <div class="stage-glow"></div>
         <div class="stage-glow secondary"></div>
-
         <div class="clock-wrap" id="clockWrap">
             <svg class="clock-svg" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid meet">
                 <defs>
@@ -84,38 +79,28 @@
                 <circle class="ring-second" id="ringSecond" cx="200" cy="200" r="186"/>
                 <circle class="ring-tip" id="ringTip" cx="200" cy="32" r="5"/>
             </svg>
-
             <div class="clock-center">
                 <div class="mode-pill" id="modePill">FOCUS</div>
                 <div class="time" id="timeDisplay">
                     <span class="t-mm">25</span><span class="t-sep">:</span><span class="t-ss">00</span>
                 </div>
                 <div class="time-sub" id="timeSub">25 min · 0 sec</div>
-                <div class="progress-line">
-                    <div class="progress-line-fill" id="progressLine"></div>
-                </div>
+                <div class="progress-line"><div class="progress-line-fill" id="progressLine"></div></div>
                 <div class="progress-pct" id="progressPct">0%</div>
             </div>
         </div>
-
         <div class="clock-controls">
             <button class="ctrl ghost" id="resetTimer" title="Reset (R)"><i class="fa-solid fa-rotate-left"></i></button>
-            <button class="ctrl primary" id="startTimer">
-                <i class="fa-solid fa-play"></i><span>Start</span>
-            </button>
+            <button class="ctrl primary" id="startTimer"><i class="fa-solid fa-play"></i><span>Start</span></button>
             <button class="ctrl ghost" id="skipTimer" title="Skip"><i class="fa-solid fa-forward-step"></i></button>
         </div>
-
         <div class="presets">
             <button class="preset" data-min="15">15m</button>
             <button class="preset active" data-min="25">25m</button>
             <button class="preset" data-min="45">45m</button>
             <button class="preset" data-min="60">60m</button>
-            <button class="preset custom" id="customTimeBtn">
-                <i class="fa-solid fa-sliders"></i> Custom
-            </button>
+            <button class="preset custom" id="customTimeBtn"><i class="fa-solid fa-sliders"></i> Custom</button>
         </div>
-
         <div class="custom-panel" id="customPanel">
             <div class="custom-inner">
                 <div class="cp-field">
@@ -136,18 +121,37 @@
     </section>
 </main>
 
-<!-- ============ YOUTUBE PLAYER ============ -->
-<div class="yt-player" id="ytPlayer">
+<!-- API KEY MODAL -->
+<div class="api-modal" id="apiModal">
+    <div class="api-modal-inner">
+        <div class="api-modal-head">
+            <h3><i class="fa-solid fa-key"></i> YouTube API Key</h3>
+            <button class="api-modal-close" id="apiModalClose"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="api-modal-body">
+            <p style="font-size:0.75rem;color:var(--text-dim);margin-bottom:12px;">
+                Playlist এর সব ভিডিও লোড করতে YouTube Data API Key দরকার।
+                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent-2);">
+                    ফ্রি Key নিন →
+                </a>
+            </p>
+            <input type="text" id="apiKeyInput" placeholder="AIzaSy..." class="api-key-input">
+            <div class="api-key-status" id="apiKeyStatus"></div>
+            <div class="api-modal-actions">
+                <button class="btn-ghost" id="apiKeyClear">Clear</button>
+                <button class="btn-glow" id="apiKeySave">Save Key</button>
+            </div>
+        </div>
+    </div>
+</div>
 
+<!-- YOUTUBE PLAYER -->
+<div class="yt-player" id="ytPlayer">
     <div class="yt-dragbar" id="ytDragbar">
         <div class="yt-dots"><span></span><span></span><span></span></div>
-        <div class="yt-drag-label">
-            <i class="fa-solid fa-shield-halved"></i> AD-FREE PLAYER
-        </div>
+        <div class="yt-drag-label"><i class="fa-solid fa-shield-halved"></i> AD-FREE PLAYER</div>
         <div class="yt-drag-actions">
-            <button class="yt-mini-btn" id="ytMiniBtn" title="Minimize">
-                <i class="fa-solid fa-compress"></i>
-            </button>
+            <button class="yt-mini-btn" id="ytMiniBtn" title="Minimize"><i class="fa-solid fa-compress"></i></button>
         </div>
     </div>
 
@@ -157,18 +161,14 @@
             <i class="fa-brands fa-youtube"></i>
             <span>Tap to start music</span>
         </div>
-        <div class="yt-loading" id="ytLoading">
-            <div class="yt-spinner"></div>
-        </div>
+        <div class="yt-loading" id="ytLoading"><div class="yt-spinner"></div></div>
         <div class="yt-ad-shield" id="ytAdShield">
             <div class="ad-shield-content">
                 <i class="fa-solid fa-shield-halved"></i>
                 <span>Blocking ad…</span>
             </div>
         </div>
-        <div class="yt-fs-btn" id="ytFsBtn" title="Fullscreen">
-            <i class="fa-solid fa-expand"></i>
-        </div>
+        <div class="yt-fs-btn" id="ytFsBtn" title="Fullscreen"><i class="fa-solid fa-expand"></i></div>
         <div class="yt-title-overlay" id="ytTitleOverlay"></div>
     </div>
 
@@ -198,69 +198,42 @@
     </div>
 
     <div class="yt-transport">
-        <button class="yt-tr-btn" id="ytShuffleBtn" title="Shuffle (S)">
-            <i class="fa-solid fa-shuffle"></i>
-        </button>
-        <button class="yt-tr-btn" id="ytPrevBtn" title="Previous (P)">
-            <i class="fa-solid fa-backward-step"></i>
-        </button>
-        <button class="yt-tr-btn big" id="ytCenterPlay" title="Play/Pause">
-            <i class="fa-solid fa-play"></i>
-        </button>
-        <button class="yt-tr-btn" id="ytNextBtn" title="Next (N)">
-            <i class="fa-solid fa-forward-step"></i>
-        </button>
-        <button class="yt-tr-btn" id="ytRepeatBtn" title="Repeat">
-            <i class="fa-solid fa-repeat"></i>
-        </button>
+        <button class="yt-tr-btn" id="ytShuffleBtn" title="Shuffle (S)"><i class="fa-solid fa-shuffle"></i></button>
+        <button class="yt-tr-btn" id="ytPrevBtn" title="Previous (P)"><i class="fa-solid fa-backward-step"></i></button>
+        <button class="yt-tr-btn big" id="ytCenterPlay" title="Play/Pause"><i class="fa-solid fa-play"></i></button>
+        <button class="yt-tr-btn" id="ytNextBtn" title="Next (N)"><i class="fa-solid fa-forward-step"></i></button>
+        <button class="yt-tr-btn" id="ytRepeatBtn" title="Repeat"><i class="fa-solid fa-repeat"></i></button>
     </div>
 
     <div class="yt-expanded-controls" id="ytExpandedControls">
-
         <div class="yt-tabs">
-            <button class="yt-tab active" data-tab="library">
-                <i class="fa-solid fa-folder-open"></i> Library
-            </button>
-            <button class="yt-tab" data-tab="queue">
-                <i class="fa-solid fa-bars-staggered"></i> Queue
-                <span class="yt-badge" id="queueBadge">0</span>
-            </button>
-            <button class="yt-tab" data-tab="load">
-                <i class="fa-solid fa-plus"></i> Add
-            </button>
-            <button class="yt-tab" data-tab="settings">
-                <i class="fa-solid fa-sliders"></i> Settings
-            </button>
+            <button class="yt-tab active" data-tab="library"><i class="fa-solid fa-folder-open"></i> Library</button>
+            <button class="yt-tab" data-tab="queue"><i class="fa-solid fa-bars-staggered"></i> Queue <span class="yt-badge" id="queueBadge">0</span></button>
+            <button class="yt-tab" data-tab="load"><i class="fa-solid fa-plus"></i> Add</button>
+            <button class="yt-tab" data-tab="settings"><i class="fa-solid fa-sliders"></i> Settings</button>
         </div>
 
-        <!-- LIBRARY TAB -->
         <div class="yt-tab-content active" data-tab="library">
             <div class="yt-search-wrap">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" id="ytSearchInput" placeholder="Paste YouTube URL and press Enter…">
                 <button id="ytSearchBtn"><i class="fa-solid fa-arrow-right"></i></button>
             </div>
-
             <div class="yt-library-empty" id="ytLibraryEmpty">
                 <div class="empty-icon"><i class="fa-solid fa-folder-plus"></i></div>
                 <h4>Your Library is Empty</h4>
                 <p>Add your favorite playlists and videos —<br>they'll appear here for one-tap access.</p>
-                <button class="yt-btn-primary" id="ytAddFirstBtn">
-                    <i class="fa-solid fa-plus"></i> Add First Playlist
-                </button>
+                <button class="yt-btn-primary" id="ytAddFirstBtn"><i class="fa-solid fa-plus"></i> Add First Playlist</button>
             </div>
-
             <div class="yt-library-list" id="ytLibraryList" style="display:none;"></div>
         </div>
 
-        <!-- QUEUE TAB -->
         <div class="yt-tab-content" data-tab="queue">
             <div class="yt-queue-header">
                 <span id="queueInfo">0 videos in queue</span>
                 <div class="yt-queue-actions">
-                    <button class="yt-qbtn" id="queueClearBtn" title="Clear queue">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                    <button class="yt-qbtn" id="queueShuffleBtn" title="Shuffle queue"><i class="fa-solid fa-shuffle"></i></button>
+                    <button class="yt-qbtn" id="queueClearBtn" title="Clear queue"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
             <div class="yt-queue" id="ytQueue">
@@ -268,7 +241,6 @@
             </div>
         </div>
 
-        <!-- LOAD TAB -->
         <div class="yt-tab-content" data-tab="load">
             <div class="yt-load-help">
                 <p><i class="fa-solid fa-circle-info"></i> Paste any of these:</p>
@@ -279,12 +251,8 @@
             </div>
             <textarea id="ytUrlInput" placeholder="Paste YouTube URL or playlist ID…" rows="3"></textarea>
             <div class="yt-load-actions">
-                <button class="yt-btn-primary" id="ytLoadBtn">
-                    <i class="fa-solid fa-play"></i> Load & Play
-                </button>
-                <button class="yt-btn-secondary" id="ytSaveBtn">
-                    <i class="fa-solid fa-bookmark"></i> Save to Library
-                </button>
+                <button class="yt-btn-primary" id="ytLoadBtn"><i class="fa-solid fa-play"></i> Load & Play</button>
+                <button class="yt-btn-secondary" id="ytSaveBtn"><i class="fa-solid fa-bookmark"></i> Save to Library</button>
             </div>
             <div class="yt-load-hint">
                 <i class="fa-solid fa-lightbulb"></i>
@@ -292,8 +260,18 @@
             </div>
         </div>
 
-        <!-- SETTINGS TAB -->
         <div class="yt-tab-content" data-tab="settings">
+            <div class="yt-setting">
+                <label>YouTube API Key</label>
+                <div class="yt-api-row">
+                    <input type="password" id="apiKeyInline" placeholder="AIzaSy...">
+                    <button class="yt-qbtn" id="apiKeyInlineSave"><i class="fa-solid fa-check"></i></button>
+                </div>
+                <small style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;display:block;">
+                    Playlist সব ভিডিও লোড করতে দরকার
+                </small>
+            </div>
+
             <div class="yt-setting">
                 <label>Volume</label>
                 <div class="yt-vol-slider-wrap">
@@ -307,7 +285,7 @@
             <div class="yt-setting">
                 <label>AdBlock Protection</label>
                 <div class="yt-switch-row">
-                    <span><i class="fa-solid fa-shield-halved" style="color:var(--accent-3)"></i> Auto-block YouTube ads</span>
+                    <span><i class="fa-solid fa-shield-halved" style="color:var(--accent-3)"></i> Auto-block ads</span>
                     <button class="yt-switch active" id="adBlockSwitch"></button>
                 </div>
             </div>
@@ -372,6 +350,6 @@
 <div class="toast-stack" id="toastStack"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/app.js?v=3.3"></script>
+<script src="js/app.js?v=3.4"></script>
 </body>
 </html>
