@@ -27,7 +27,7 @@ const S = {
     ytPlaylistId: '',
     ytLastLoaded: '',
     ytLastName: '',
-    ytApiKey: ''
+    ytApiKey: 'AIzaSyCibv9PdbUGAMW5lB5xCVVL2uAJjW6oRrY'
 };
 function loadState() {
     try {
