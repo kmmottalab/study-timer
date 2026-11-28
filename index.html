@@ -5,16 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#04040a">
-<title>FocusFlow ULTRA — Ad-Free Focus Player</title>
+<title>FocusFlow ULTRA — Cinema Mode</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=3.5">
+<link rel="stylesheet" href="css/style.css?v=3.6">
 </head>
 <body>
 
-<!-- ============================================================
-     BACKGROUND LAYERS
-     ============================================================ -->
 <canvas id="nebula"></canvas>
 <div class="aurora aurora-1"></div>
 <div class="aurora aurora-2"></div>
@@ -23,17 +20,11 @@
 <div class="noise"></div>
 <div class="vignette"></div>
 
-<!-- ============================================================
-     ADBLOCK BADGE (Top-Left)
-     ============================================================ -->
 <div class="adblock-badge" id="adBlockBadge">
     <i class="fa-solid fa-shield-halved"></i>
     <span>AD-FREE</span>
 </div>
 
-<!-- ============================================================
-     LOADER
-     ============================================================ -->
 <div id="loader">
     <div class="loader-inner">
         <div class="loader-orb">
@@ -47,9 +38,6 @@
     </div>
 </div>
 
-<!-- ============================================================
-     TOPBAR
-     ============================================================ -->
 <header class="topbar">
     <div class="brand">
         <div class="brand-mark"><i class="fa-solid fa-wave-square"></i></div>
@@ -68,9 +56,6 @@
     </div>
 </header>
 
-<!-- ============================================================
-     CLOCK (FULL SCREEN CENTER)
-     ============================================================ -->
 <main class="dash" id="dash">
     <section class="clock-stage" id="clockStage">
         <div class="stage-glow"></div>
@@ -158,9 +143,6 @@
     </section>
 </main>
 
-<!-- ============================================================
-     API KEY MODAL
-     ============================================================ -->
 <div class="api-modal" id="apiModal">
     <div class="api-modal-inner">
         <div class="api-modal-head">
@@ -187,308 +169,278 @@
 </div>
 
 <!-- ============================================================
-     YOUTUBE PLAYER — CUSTOM CONTROL
+     YOUTUBE PLAYER — CINEMA MODE
      ============================================================ -->
 <div class="yt-player" id="ytPlayer">
 
-    <!-- DRAG BAR -->
-    <div class="yt-dragbar" id="ytDragbar">
-        <div class="yt-dots"><span></span><span></span><span></span></div>
-        <div class="yt-drag-label">
-            <i class="fa-solid fa-shield-halved"></i> AD-FREE PLAYER
+    <!-- MAIN CONTAINER (video + overlay) -->
+    <div class="yt-main" id="ytMain">
+        <div class="yt-frame-wrap" id="ytFrameWrap">
+            <div id="ytFrame"></div>
+            <div class="yt-click-catcher" id="ytClickCatcher"></div>
+
+            <div class="yt-tap-hint" id="ytTapHint">
+                <i class="fa-solid fa-hand-pointer"></i>
+            </div>
+
+            <div class="yt-overlay" id="ytOverlay">
+                <i class="fa-brands fa-youtube"></i>
+                <span>Tap to start music</span>
+            </div>
+
+            <div class="yt-loading" id="ytLoading">
+                <div class="yt-spinner"></div>
+            </div>
+
+            <div class="yt-ad-shield" id="ytAdShield">
+                <div class="ad-shield-content">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>Blocking ad…</span>
+                </div>
+            </div>
+
+            <div class="yt-title-overlay" id="ytTitleOverlay"></div>
         </div>
-        <div class="yt-drag-actions">
-            <button class="yt-mini-btn" id="ytMiniBtn" title="Minimize">
-                <i class="fa-solid fa-compress"></i>
+    </div>
+
+    <!-- ALL UI — WRAPPED IN ONE CONTAINER (hides together) -->
+    <div class="yt-ui" id="ytUi">
+
+        <div class="yt-dragbar" id="ytDragbar">
+            <div class="yt-dots"><span></span><span></span><span></span></div>
+            <div class="yt-drag-label">
+                <i class="fa-solid fa-shield-halved"></i> AD-FREE
+            </div>
+            <div class="yt-drag-actions">
+                <button class="yt-mini-btn" id="ytMiniBtn" title="Minimize">
+                    <i class="fa-solid fa-compress"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="yt-progress" id="ytProgress">
+            <div class="yt-progress-buffer" id="ytProgressBuffer"></div>
+            <div class="yt-progress-fill" id="ytProgressFill"></div>
+        </div>
+
+        <div class="yt-bar">
+            <div class="yt-logo">
+                <i class="fa-brands fa-youtube"></i>
+                <div class="yt-live-ring"></div>
+            </div>
+            <div class="yt-meta">
+                <div class="yt-title" id="ytTitle">No playlist loaded</div>
+                <div class="yt-sub">
+                    <span id="ytCurTime">0:00</span> / <span id="ytDurTime">0:00</span>
+                    <span class="yt-idx" id="ytIdx"></span>
+                </div>
+            </div>
+            <div class="yt-actions">
+                <button class="yt-btn" id="ytPlayPause" title="Play/Pause (M)">
+                    <i class="fa-solid fa-play"></i>
+                </button>
+                <button class="yt-btn" id="ytVolume" title="Mute">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <button class="yt-btn" id="ytExpand" title="Expand (Y)">
+                    <i class="fa-solid fa-chevron-up"></i>
+                </button>
+                <button class="yt-btn close" id="ytClose" title="Hide (H)">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="yt-transport">
+            <button class="yt-tr-btn" id="ytShuffleBtn" title="Shuffle (S)">
+                <i class="fa-solid fa-shuffle"></i>
             </button>
-        </div>
-    </div>
-
-    <!-- VIDEO FRAME -->
-    <div class="yt-frame-wrap" id="ytFrameWrap">
-        <div id="ytFrame"></div>
-
-        <!-- ✅ Click catcher layer — YouTube controls block করে -->
-        <div class="yt-click-catcher" id="ytClickCatcher"></div>
-
-        <!-- ✅ Tap hint (5s পর দেখাবে) -->
-        <div class="yt-tap-hint" id="ytTapHint">
-            <i class="fa-solid fa-hand-pointer"></i>
-            <span>Tap to show controls</span>
-        </div>
-
-        <!-- Load overlay -->
-        <div class="yt-overlay" id="ytOverlay">
-            <i class="fa-brands fa-youtube"></i>
-            <span>Tap to start music</span>
-        </div>
-
-        <!-- Loading spinner -->
-        <div class="yt-loading" id="ytLoading">
-            <div class="yt-spinner"></div>
-        </div>
-
-        <!-- Ad blocker shield -->
-        <div class="yt-ad-shield" id="ytAdShield">
-            <div class="ad-shield-content">
-                <i class="fa-solid fa-shield-halved"></i>
-                <span>Blocking ad…</span>
-            </div>
-        </div>
-
-        <!-- Fullscreen button -->
-        <div class="yt-fs-btn" id="ytFsBtn" title="Fullscreen (Double-click)">
-            <i class="fa-solid fa-expand"></i>
-        </div>
-
-        <!-- Title overlay (hover only) -->
-        <div class="yt-title-overlay" id="ytTitleOverlay"></div>
-    </div>
-
-    <!-- PROGRESS BAR -->
-    <div class="yt-progress" id="ytProgress">
-        <div class="yt-progress-buffer" id="ytProgressBuffer"></div>
-        <div class="yt-progress-fill" id="ytProgressFill"></div>
-    </div>
-
-    <!-- INFO BAR -->
-    <div class="yt-bar">
-        <div class="yt-logo">
-            <i class="fa-brands fa-youtube"></i>
-            <div class="yt-live-ring"></div>
-        </div>
-        <div class="yt-meta">
-            <div class="yt-title" id="ytTitle">No playlist loaded</div>
-            <div class="yt-sub">
-                <span id="ytCurTime">0:00</span> / <span id="ytDurTime">0:00</span>
-                <span class="yt-idx" id="ytIdx"></span>
-            </div>
-        </div>
-        <div class="yt-actions">
-            <button class="yt-btn" id="ytPlayPause" title="Play/Pause (M)">
+            <button class="yt-tr-btn" id="ytPrevBtn" title="Previous (P)">
+                <i class="fa-solid fa-backward-step"></i>
+            </button>
+            <button class="yt-tr-btn big" id="ytCenterPlay" title="Play/Pause">
                 <i class="fa-solid fa-play"></i>
             </button>
-            <button class="yt-btn" id="ytVolume" title="Mute">
-                <i class="fa-solid fa-volume-high"></i>
+            <button class="yt-tr-btn" id="ytNextBtn" title="Next (N)">
+                <i class="fa-solid fa-forward-step"></i>
             </button>
-            <button class="yt-btn" id="ytExpand" title="Expand (Y)">
-                <i class="fa-solid fa-chevron-up"></i>
-            </button>
-            <button class="yt-btn close" id="ytClose" title="Hide (H)">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- TRANSPORT (Prev / Play / Next / Shuffle / Repeat) -->
-    <div class="yt-transport">
-        <button class="yt-tr-btn" id="ytShuffleBtn" title="Shuffle (S)">
-            <i class="fa-solid fa-shuffle"></i>
-        </button>
-        <button class="yt-tr-btn" id="ytPrevBtn" title="Previous (P)">
-            <i class="fa-solid fa-backward-step"></i>
-        </button>
-        <button class="yt-tr-btn big" id="ytCenterPlay" title="Play/Pause">
-            <i class="fa-solid fa-play"></i>
-        </button>
-        <button class="yt-tr-btn" id="ytNextBtn" title="Next (N)">
-            <i class="fa-solid fa-forward-step"></i>
-        </button>
-        <button class="yt-tr-btn" id="ytRepeatBtn" title="Repeat">
-            <i class="fa-solid fa-repeat"></i>
-        </button>
-    </div>
-
-    <!-- EXPANDED CONTROLS (Tabs) -->
-    <div class="yt-expanded-controls" id="ytExpandedControls">
-
-        <!-- TABS -->
-        <div class="yt-tabs">
-            <button class="yt-tab active" data-tab="library">
-                <i class="fa-solid fa-folder-open"></i> Library
-            </button>
-            <button class="yt-tab" data-tab="queue">
-                <i class="fa-solid fa-bars-staggered"></i> Queue
-                <span class="yt-badge" id="queueBadge">0</span>
-            </button>
-            <button class="yt-tab" data-tab="load">
-                <i class="fa-solid fa-plus"></i> Add
-            </button>
-            <button class="yt-tab" data-tab="settings">
-                <i class="fa-solid fa-sliders"></i> Settings
+            <button class="yt-tr-btn" id="ytRepeatBtn" title="Repeat">
+                <i class="fa-solid fa-repeat"></i>
             </button>
         </div>
 
-        <!-- LIBRARY TAB -->
-        <div class="yt-tab-content active" data-tab="library">
-            <div class="yt-search-wrap">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="ytSearchInput" placeholder="Paste YouTube URL and press Enter…">
-                <button id="ytSearchBtn" title="Load">
-                    <i class="fa-solid fa-arrow-right"></i>
+        <div class="yt-expanded-controls" id="ytExpandedControls">
+            <div class="yt-tabs">
+                <button class="yt-tab active" data-tab="library">
+                    <i class="fa-solid fa-folder-open"></i> Library
+                </button>
+                <button class="yt-tab" data-tab="queue">
+                    <i class="fa-solid fa-bars-staggered"></i> Queue
+                    <span class="yt-badge" id="queueBadge">0</span>
+                </button>
+                <button class="yt-tab" data-tab="load">
+                    <i class="fa-solid fa-plus"></i> Add
+                </button>
+                <button class="yt-tab" data-tab="settings">
+                    <i class="fa-solid fa-sliders"></i> Settings
                 </button>
             </div>
 
-            <div class="yt-library-empty" id="ytLibraryEmpty">
-                <div class="empty-icon"><i class="fa-solid fa-folder-plus"></i></div>
-                <h4>Your Library is Empty</h4>
-                <p>Add your favorite playlists and videos —<br>they'll appear here for one-tap access.</p>
-                <button class="yt-btn-primary" id="ytAddFirstBtn">
-                    <i class="fa-solid fa-plus"></i> Add First Playlist
-                </button>
-            </div>
-
-            <div class="yt-library-list" id="ytLibraryList" style="display:none;"></div>
-        </div>
-
-        <!-- QUEUE TAB -->
-        <div class="yt-tab-content" data-tab="queue">
-            <div class="yt-queue-header">
-                <span id="queueInfo">0 videos in queue</span>
-                <div class="yt-queue-actions">
-                    <button class="yt-qbtn" id="queueShuffleBtn" title="Shuffle queue">
-                        <i class="fa-solid fa-shuffle"></i>
-                    </button>
-                    <button class="yt-qbtn" id="queueClearBtn" title="Clear queue">
-                        <i class="fa-solid fa-trash"></i>
+            <div class="yt-tab-content active" data-tab="library">
+                <div class="yt-search-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="ytSearchInput" placeholder="Paste YouTube URL and press Enter…">
+                    <button id="ytSearchBtn" title="Load">
+                        <i class="fa-solid fa-arrow-right"></i>
                     </button>
                 </div>
-            </div>
-            <div class="yt-queue" id="ytQueue">
-                <div class="yt-empty-mini">Queue is empty</div>
-            </div>
-        </div>
-
-        <!-- LOAD TAB -->
-        <div class="yt-tab-content" data-tab="load">
-            <div class="yt-load-help">
-                <p><i class="fa-solid fa-circle-info"></i> Paste any of these:</p>
-                <code>youtube.com/playlist?list=PLxxx</code>
-                <code>youtube.com/watch?v=xxx&list=PLxxx</code>
-                <code>youtu.be/xxxxx</code>
-                <code>Video ID: xxxxxxxxxxx</code>
-            </div>
-            <textarea id="ytUrlInput" placeholder="Paste YouTube URL or playlist ID…" rows="3"></textarea>
-            <div class="yt-load-actions">
-                <button class="yt-btn-primary" id="ytLoadBtn">
-                    <i class="fa-solid fa-play"></i> Load & Play
-                </button>
-                <button class="yt-btn-secondary" id="ytSaveBtn">
-                    <i class="fa-solid fa-bookmark"></i> Save to Library
-                </button>
-            </div>
-            <div class="yt-load-hint">
-                <i class="fa-solid fa-lightbulb"></i>
-                <span>Save playlists to Library for quick access anytime.</span>
-            </div>
-        </div>
-
-        <!-- SETTINGS TAB -->
-        <div class="yt-tab-content" data-tab="settings">
-            <div class="yt-setting">
-                <label>YouTube API Key</label>
-                <div class="yt-api-row">
-                    <input type="password" id="apiKeyInline" placeholder="AIzaSy...">
-                    <button class="yt-qbtn" id="apiKeyInlineSave" title="Save">
-                        <i class="fa-solid fa-check"></i>
+                <div class="yt-library-empty" id="ytLibraryEmpty">
+                    <div class="empty-icon"><i class="fa-solid fa-folder-plus"></i></div>
+                    <h4>Your Library is Empty</h4>
+                    <p>Add your favorite playlists and videos —<br>they'll appear here for one-tap access.</p>
+                    <button class="yt-btn-primary" id="ytAddFirstBtn">
+                        <i class="fa-solid fa-plus"></i> Add First Playlist
                     </button>
                 </div>
-                <small style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;display:block;">
-                    Playlist সব ভিডিও লোড করতে দরকার
-                </small>
+                <div class="yt-library-list" id="ytLibraryList" style="display:none;"></div>
             </div>
 
-            <div class="yt-setting">
-                <label>Volume</label>
-                <div class="yt-vol-slider-wrap">
-                    <i class="fa-solid fa-volume-low"></i>
-                    <input type="range" id="ytVolSlider" min="0" max="100" value="60">
-                    <i class="fa-solid fa-volume-high"></i>
-                    <span id="ytVolValue">60%</span>
+            <div class="yt-tab-content" data-tab="queue">
+                <div class="yt-queue-header">
+                    <span id="queueInfo">0 videos in queue</span>
+                    <div class="yt-queue-actions">
+                        <button class="yt-qbtn" id="queueShuffleBtn" title="Shuffle queue">
+                            <i class="fa-solid fa-shuffle"></i>
+                        </button>
+                        <button class="yt-qbtn" id="queueClearBtn" title="Clear queue">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="yt-queue" id="ytQueue">
+                    <div class="yt-empty-mini">Queue is empty</div>
                 </div>
             </div>
 
-            <div class="yt-setting">
-                <label>AdBlock Protection</label>
-                <div class="yt-switch-row">
-                    <span>
-                        <i class="fa-solid fa-shield-halved" style="color:var(--accent-3)"></i>
-                        Auto-block ads
-                    </span>
-                    <button class="yt-switch active" id="adBlockSwitch"></button>
+            <div class="yt-tab-content" data-tab="load">
+                <div class="yt-load-help">
+                    <p><i class="fa-solid fa-circle-info"></i> Paste any of these:</p>
+                    <code>youtube.com/playlist?list=PLxxx</code>
+                    <code>youtube.com/watch?v=xxx&list=PLxxx</code>
+                    <code>youtu.be/xxxxx</code>
+                    <code>Video ID: xxxxxxxxxxx</code>
+                </div>
+                <textarea id="ytUrlInput" placeholder="Paste YouTube URL or playlist ID…" rows="3"></textarea>
+                <div class="yt-load-actions">
+                    <button class="yt-btn-primary" id="ytLoadBtn">
+                        <i class="fa-solid fa-play"></i> Load & Play
+                    </button>
+                    <button class="yt-btn-secondary" id="ytSaveBtn">
+                        <i class="fa-solid fa-bookmark"></i> Save to Library
+                    </button>
+                </div>
+                <div class="yt-load-hint">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    <span>Save playlists to Library for quick access anytime.</span>
                 </div>
             </div>
 
-            <div class="yt-setting">
-                <label>Playback speed</label>
-                <div class="yt-speed-btns">
-                    <button data-speed="0.5">0.5×</button>
-                    <button data-speed="0.75">0.75×</button>
-                    <button data-speed="1" class="active">1×</button>
-                    <button data-speed="1.25">1.25×</button>
-                    <button data-speed="1.5">1.5×</button>
-                    <button data-speed="2">2×</button>
+            <div class="yt-tab-content" data-tab="settings">
+                <div class="yt-setting">
+                    <label>YouTube API Key</label>
+                    <div class="yt-api-row">
+                        <input type="password" id="apiKeyInline" placeholder="AIzaSy...">
+                        <button class="yt-qbtn" id="apiKeyInlineSave" title="Save">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
+                    </div>
+                    <small style="font-size:0.6rem;color:var(--text-faint);margin-top:4px;display:block;">
+                        Playlist সব ভিডিও লোড করতে দরকার
+                    </small>
                 </div>
-            </div>
 
-            <div class="yt-setting">
-                <label>Sleep timer</label>
-                <div class="yt-sleep">
-                    <i class="fa-solid fa-moon"></i>
-                    <select id="ytSleepTimer">
-                        <option value="0">Off</option>
-                        <option value="15">15 min</option>
-                        <option value="30">30 min</option>
-                        <option value="45">45 min</option>
-                        <option value="60">1 hour</option>
-                        <option value="90">1.5 hours</option>
+                <div class="yt-setting">
+                    <label>Volume</label>
+                    <div class="yt-vol-slider-wrap">
+                        <i class="fa-solid fa-volume-low"></i>
+                        <input type="range" id="ytVolSlider" min="0" max="100" value="60">
+                        <i class="fa-solid fa-volume-high"></i>
+                        <span id="ytVolValue">60%</span>
+                    </div>
+                </div>
+
+                <div class="yt-setting">
+                    <label>AdBlock Protection</label>
+                    <div class="yt-switch-row">
+                        <span>
+                            <i class="fa-solid fa-shield-halved" style="color:var(--accent-3)"></i>
+                            Auto-block ads
+                        </span>
+                        <button class="yt-switch active" id="adBlockSwitch"></button>
+                    </div>
+                </div>
+
+                <div class="yt-setting">
+                    <label>Playback speed</label>
+                    <div class="yt-speed-btns">
+                        <button data-speed="0.5">0.5×</button>
+                        <button data-speed="0.75">0.75×</button>
+                        <button data-speed="1" class="active">1×</button>
+                        <button data-speed="1.25">1.25×</button>
+                        <button data-speed="1.5">1.5×</button>
+                        <button data-speed="2">2×</button>
+                    </div>
+                </div>
+
+                <div class="yt-setting">
+                    <label>Sleep timer</label>
+                    <div class="yt-sleep">
+                        <i class="fa-solid fa-moon"></i>
+                        <select id="ytSleepTimer">
+                            <option value="0">Off</option>
+                            <option value="15">15 min</option>
+                            <option value="30">30 min</option>
+                            <option value="45">45 min</option>
+                            <option value="60">1 hour</option>
+                            <option value="90">1.5 hours</option>
+                        </select>
+                        <span id="ytSleepCountdown"></span>
+                    </div>
+                </div>
+
+                <div class="yt-setting">
+                    <label>Autoplay next</label>
+                    <div class="yt-switch-row">
+                        <span>Auto-play next in queue</span>
+                        <button class="yt-switch active" id="autoplaySwitch"></button>
+                    </div>
+                </div>
+
+                <div class="yt-setting">
+                    <label>Quality</label>
+                    <select id="ytQuality">
+                        <option value="default">Auto</option>
+                        <option value="hd1080">1080p</option>
+                        <option value="hd720">720p</option>
+                        <option value="large">480p</option>
+                        <option value="medium">360p</option>
+                        <option value="small">240p</option>
                     </select>
-                    <span id="ytSleepCountdown"></span>
                 </div>
-            </div>
-
-            <div class="yt-setting">
-                <label>Autoplay next</label>
-                <div class="yt-switch-row">
-                    <span>Auto-play next in queue</span>
-                    <button class="yt-switch active" id="autoplaySwitch"></button>
-                </div>
-            </div>
-
-            <div class="yt-setting">
-                <label>Quality</label>
-                <select id="ytQuality">
-                    <option value="default">Auto</option>
-                    <option value="hd1080">1080p</option>
-                    <option value="hd720">720p</option>
-                    <option value="large">480p</option>
-                    <option value="medium">360p</option>
-                    <option value="small">240p</option>
-                </select>
             </div>
         </div>
-    </div>
 
-    <!-- RESIZE HANDLE -->
-    <div class="yt-resize" id="ytResize"></div>
+        <div class="yt-resize" id="ytResize"></div>
+    </div>
 </div>
 
-<!-- ============================================================
-     RESTORE BUTTON (when hidden)
-     ============================================================ -->
 <button class="yt-restore" id="ytRestore" title="Restore player (Y)">
     <i class="fa-brands fa-youtube"></i>
 </button>
 
-<!-- ============================================================
-     TOAST CONTAINER
-     ============================================================ -->
 <div class="toast-stack" id="toastStack"></div>
 
-<!-- ============================================================
-     SCRIPTS
-     ============================================================ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/app.js?v=3.5"></script>
+<script src="js/app.js?v=3.6"></script>
 </body>
 </html>
