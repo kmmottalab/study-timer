@@ -1,5 +1,6 @@
 /* ============================================================
-   FOCUSFLOW ULTRA v3.3 — AdBlock + Custom Library
+   FOCUSFLOW ULTRA v3.4
+   Full YouTube Data API + AdBlock + Library + Queue
    ============================================================ */
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -20,18 +21,18 @@ const S = {
     ytAdBlock: true,
     ytQueue: [],
     ytIndex: -1,
-    ytLibrary: [],           // User's saved playlists/videos
+    ytLibrary: [],
     ytPos: { right: 24, bottom: 24 },
     ytSize: { width: 400 },
     ytPlaylistId: '',
     ytLastLoaded: '',
-    ytLastName: ''
+    ytLastName: '',
+    ytApiKey: ''
 };
 function loadState() {
     try {
         const raw = localStorage.getItem('focusflow_ultra');
         if (raw) Object.assign(S, JSON.parse(raw));
-        // Fresh start — no default playlist
         if (!Array.isArray(S.ytLibrary)) S.ytLibrary = [];
         if (!Array.isArray(S.ytQueue)) S.ytQueue = [];
     } catch(e) {}
@@ -39,143 +40,153 @@ function loadState() {
 function saveState() { localStorage.setItem('focusflow_ultra', JSON.stringify(S)); }
 
 /* ============================================================
-   ADBLOCK — Multi-layer protection
+   YOUTUBE DATA API HELPER
+   ============================================================ */
+const YT_API = {
+    base: 'https://www.googleapis.com/youtube/v3',
+
+    hasKey() { return !!S.ytApiKey && S.ytApiKey.length > 20; },
+
+    async validate(key) {
+        try {
+            const res = await fetch(`${this.base}/playlists?part=id&id=PLOzDu-MXXLliO9fBNZOQTAm1qAE1n6U7&key=${key}`);
+            if (res.ok) {
+                const data = await res.json();
+                return data.items && data.items.length > 0;
+            }
+            return false;
+        } catch (e) { return false; }
+    },
+
+    async getPlaylistItems(playlistId) {
+        if (!this.hasKey()) throw new Error('No API key');
+        let allItems = [];
+        let pageToken = '';
+
+        do {
+            const url = `${this.base}/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${playlistId}&key=${S.ytApiKey}${pageToken ? `&pageToken=${pageToken}` : ''}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.error) throw new Error(data.error.message || 'API error');
+            if (!data.items) break;
+
+            for (const item of data.items) {
+                const vid = item.contentDetails?.videoId;
+                if (!vid) continue;
+                const sn = item.snippet || {};
+                allItems.push({
+                    id: vid,
+                    title: sn.title || 'Untitled',
+                    channel: sn.videoOwnerChannelTitle || sn.channelTitle || 'Unknown',
+                    thumb: sn.thumbnails?.medium?.url || sn.thumbnails?.default?.url || `https://i.ytimg.com/vi/${vid}/mqdefault.jpg`,
+                    duration: ''
+                });
+            }
+            pageToken = data.nextPageToken || '';
+        } while (pageToken);
+
+        return allItems;
+    },
+
+    async getVideoDetails(videoIds) {
+        if (!this.hasKey()) return {};
+        if (!videoIds || videoIds.length === 0) return {};
+        try {
+            const ids = videoIds.slice(0, 50).join(',');
+            const res = await fetch(`${this.base}/videos?part=contentDetails,snippet&id=${ids}&key=${S.ytApiKey}`);
+            const data = await res.json();
+            const map = {};
+            if (data.items) {
+                for (const v of data.items) {
+                    map[v.id] = {
+                        title: v.snippet?.title,
+                        channel: v.snippet?.channelTitle,
+                        thumb: v.snippet?.thumbnails?.medium?.url,
+                        duration: v.contentDetails?.duration
+                    };
+                }
+            }
+            return map;
+        } catch(e) { return {}; }
+    }
+};
+
+/* ============================================================
+   ADBLOCK
    ============================================================ */
 const AdBlocker = {
     active: true,
-    adCheckInterval: null,
-    lastAdState: false,
-
+    interval: null,
+    wasMuted: false,
     init() {
         this.active = S.ytAdBlock !== false;
         this.updateBadge();
-        this.startMonitoring();
+        this.start();
     },
-
     toggle() {
         this.active = !this.active;
         S.ytAdBlock = this.active;
         saveState();
         this.updateBadge();
-        if (!this.active) {
-            this.hideShield();
-        }
+        if (!this.active) this.hideShield();
         toast(this.active ? '🛡️ AdBlock ON' : '⚠️ AdBlock OFF', this.active ? 'success' : 'warn');
     },
-
     updateBadge() {
-        const badge = $('#adBlockBadge');
-        if (!badge) return;
+        const b = $('#adBlockBadge');
+        if (!b) return;
         if (this.active) {
-            badge.classList.remove('off');
-            badge.innerHTML = '<i class="fa-solid fa-shield-halved"></i><span>AD-FREE</span>';
+            b.classList.remove('off');
+            b.innerHTML = '<i class="fa-solid fa-shield-halved"></i><span>AD-FREE</span>';
         } else {
-            badge.classList.add('off');
-            badge.innerHTML = '<i class="fa-solid fa-shield-xmark"></i><span>ADS ON</span>';
+            b.classList.add('off');
+            b.innerHTML = '<i class="fa-solid fa-shield-xmark"></i><span>ADS ON</span>';
         }
     },
-
-    startMonitoring() {
-        if (this.adCheckInterval) clearInterval(this.adCheckInterval);
-        this.adCheckInterval = setInterval(() => this.checkAd(), 350);
+    start() {
+        clearInterval(this.interval);
+        this.interval = setInterval(() => this.check(), 400);
     },
-
-    checkAd() {
+    check() {
         if (!this.active || !ytApi || !ytIsReady) return;
-
         try {
-            // Get ad state — YT IFrame API doesn't expose ads directly,
-            // so we use heuristic: video data quality/state anomalies
-            const playerState = ytApi.getPlayerState();
-            const videoData = ytApi.getVideoData();
-            const currentTime = ytApi.getCurrentTime() || 0;
-            const duration = ytApi.getDuration() || 0;
-
-            // Heuristic: if video is playing but duration is 0 or very short (< 35s)
-            // and it's not a Short — likely an ad
-            const isLikelyAd = (
-                playerState === 1 && // PLAYING
-                (duration === 0 || duration < 35) &&
-                currentTime < 35 &&
-                !videoData?.isLive &&
-                !videoData?.video_id?.includes('short')
-            );
-
-            // Additional heuristic: check for ad UI elements in iframe
-            const hasAdMarker = this.detectAdMarker();
-
-            if (isLikelyAd || hasAdMarker) {
-                this.handleAdDetected();
-            } else if (this.lastAdState) {
-                // Ad ended — restore
-                this.handleAdEnded();
-            }
-            this.lastAdState = isLikelyAd || hasAdMarker;
-        } catch(err) {
-            // Silent
-        }
-    },
-
-    detectAdMarker() {
-        try {
-            const iframe = document.querySelector('#ytFrame iframe');
-            if (!iframe) return false;
-            // Can't access iframe internals due to CORS,
-            // but we can check if the iframe URL has ad params
-            const src = iframe.src || '';
-            return src.includes('adformat=') ||
-                   src.includes('adsense') ||
-                   src.includes('doubleclick');
-        } catch(e) {
-            return false;
-        }
-    },
-
-    handleAdDetected() {
-        if (!this.active) return;
-        const shield = $('#ytAdShield');
-        if (shield) shield.classList.add('show');
-
-        // Aggressive ad skip: mute + skip + seek
-        try {
-            if (ytApi && ytApi.isMuted && !ytApi.isMuted()) {
-                ytApi.mute();
-                this._wasMutedByUs = true;
-            }
-
-            // Try clicking skip button inside iframe (if accessible)
-            this.tryClickSkip();
-
-            // Try seeking forward past the ad
+            const st = ytApi.getPlayerState();
             const cur = ytApi.getCurrentTime() || 0;
             const dur = ytApi.getDuration() || 0;
+            const isLikelyAd = st === 1 && (dur === 0 || dur < 35) && cur < 35;
+            if (isLikelyAd) this.handleAd();
+            else if (this.wasMuted) this.endAd();
+        } catch(e) {}
+    },
+    handleAd() {
+        const shield = $('#ytAdShield');
+        if (shield) shield.classList.add('show');
+        try {
+            if (ytApi.isMuted && !ytApi.isMuted()) {
+                ytApi.mute();
+                this.wasMuted = true;
+            }
+            this.trySkip();
+            const dur = ytApi.getDuration() || 0;
+            const cur = ytApi.getCurrentTime() || 0;
             if (dur > 0 && dur < 35 && cur < dur - 1) {
-                // Short video — likely ad, seek to end
                 ytApi.seekTo(dur - 0.5, true);
             }
-        } catch(err) {}
+        } catch(e) {}
     },
-
-    handleAdEnded() {
+    endAd() {
         const shield = $('#ytAdShield');
         if (shield) shield.classList.remove('show');
-
-        // Restore volume if we muted
-        if (this._wasMutedByUs) {
-            try {
-                ytApi.unMute();
-                this._wasMutedByUs = false;
-            } catch(e) {}
+        if (this.wasMuted) {
+            try { ytApi.unMute(); this.wasMuted = false; } catch(e) {}
         }
     },
-
-    tryClickSkip() {
+    trySkip() {
         try {
             const iframe = document.querySelector('#ytFrame iframe');
             if (!iframe) return;
             const doc = iframe.contentDocument || iframe.contentWindow?.document;
             if (!doc) return;
-            // Try to find skip button
             const selectors = [
                 '.ytp-ad-skip-button',
                 '.ytp-ad-skip-button-modern',
@@ -184,14 +195,10 @@ const AdBlocker = {
             ];
             for (const sel of selectors) {
                 const btn = doc.querySelector(sel);
-                if (btn) { btn.click(); return true; }
+                if (btn) { btn.click(); return; }
             }
-        } catch(e) {
-            // CORS — silent
-        }
-        return false;
+        } catch(e) {}
     },
-
     hideShield() {
         const shield = $('#ytAdShield');
         if (shield) shield.classList.remove('show');
@@ -545,18 +552,16 @@ let progressInterval = null;
 let sleepInterval = null;
 let sleepRemaining = 0;
 
-function hideOverlay() {
-    if (ytOverlay) ytOverlay.classList.add('hide');
-}
-function showOverlay() {
-    if (ytOverlay) ytOverlay.classList.remove('hide');
-}
+function hideOverlay() { if (ytOverlay) ytOverlay.classList.add('hide'); }
+function showOverlay() { if (ytOverlay) ytOverlay.classList.remove('hide'); }
 
 /* ============================================================
-   YT API LOADER
+   YT IFRAME API
    ============================================================ */
 function loadYTAPI() {
     if (window.YT && window.YT.Player) { initYTPlayer(); return; }
+    if (window._ytApiLoading) return;
+    window._ytApiLoading = true;
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
     tag.onerror = () => toast('YouTube API blocked — check connection', 'warn');
@@ -569,7 +574,7 @@ function initYTPlayer() {
     ytLoading.classList.add('show');
 
     const playerVars = {
-        autoplay: 0,               // don't autoplay until user loads something
+        autoplay: 0,
         controls: 1,
         modestbranding: 1,
         rel: 0,
@@ -577,12 +582,10 @@ function initYTPlayer() {
         origin: location.origin,
         enablejsapi: 1,
         iv_load_policy: 3,
-        // Ad-block related player params:
         disablekb: 1,
         fs: 0
     };
 
-    // If we have a saved library item, use it as initial. Otherwise empty player.
     let initialVideo = '';
     if (S.ytQueue.length > 0 && S.ytIndex >= 0) {
         initialVideo = S.ytQueue[S.ytIndex].id;
@@ -591,7 +594,7 @@ function initYTPlayer() {
         if (vid) initialVideo = vid;
     }
 
-    const playerConfig = {
+    const config = {
         playerVars,
         events: {
             onReady: (e) => {
@@ -601,13 +604,10 @@ function initYTPlayer() {
                 try {
                     ytApi.setVolume(S.ytVolume);
                     ytApi.setPlaybackRate(S.ytSpeed);
-                    if (S.ytQuality !== 'default') {
-                        ytApi.setPlaybackQuality(S.ytQuality);
-                    }
+                    if (S.ytQuality !== 'default') ytApi.setPlaybackQuality(S.ytQuality);
                 } catch(err) {}
                 startProgressLoop();
                 if (S.ytQueue.length > 0 && S.ytIndex >= 0) {
-                    // Queue was restored — load it
                     setTimeout(() => loadQueueItem(S.ytIndex, false), 300);
                 }
             },
@@ -620,7 +620,7 @@ function initYTPlayer() {
                     ytCenterPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
                     ytLoading.classList.remove('show');
                     hideOverlay();
-                    AdBlocker.handleAdEnded();
+                    AdBlocker.endAd();
                 } else if (st === YT.PlayerState.PAUSED) {
                     ytIsPlaying = false;
                     ytPlayer.classList.remove('playing');
@@ -648,9 +648,8 @@ function initYTPlayer() {
         }
     };
 
-    if (initialVideo) playerConfig.videoId = initialVideo;
-
-    ytApi = new YT.Player('ytFrame', playerConfig);
+    if (initialVideo) config.videoId = initialVideo;
+    ytApi = new YT.Player('ytFrame', config);
     if (S.ytQueue.length > 0 && S.ytIndex >= 0) {
         updateNowPlaying(S.ytQueue[S.ytIndex]);
     }
@@ -693,7 +692,6 @@ ytOverlay.addEventListener('click', () => {
     if (!ytApi || !ytIsReady) {
         loadYTAPI();
     } else {
-        // If library has items but nothing loaded, load first
         if (S.ytQueue.length === 0 && S.ytLibrary.length > 0) {
             loadLibraryItem(0);
         } else {
@@ -750,11 +748,9 @@ ytVolSlider.addEventListener('input', (e) => {
 });
 
 function updateExpandIcon() {
-    if (ytPlayer.classList.contains('minimized')) {
-        ytExpand.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
-    } else {
-        ytExpand.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
-    }
+    ytExpand.innerHTML = ytPlayer.classList.contains('minimized')
+        ? '<i class="fa-solid fa-chevron-up"></i>'
+        : '<i class="fa-solid fa-chevron-down"></i>';
 }
 ytExpand.addEventListener('click', () => {
     ytPlayer.classList.toggle('minimized');
@@ -831,7 +827,7 @@ function extractPlaylistId(input) {
 }
 
 /* ============================================================
-   LIBRARY (user's saved playlists/videos)
+   LIBRARY
    ============================================================ */
 function renderLibrary() {
     if (!ytLibraryList || !ytLibraryEmpty) return;
@@ -883,7 +879,6 @@ function renderLibrary() {
 }
 
 function addToLibrary(item) {
-    // item: { type: 'playlist'|'video', id, name }
     if (S.ytLibrary.some(l => l.id === item.id)) {
         toast('Already in library', 'warn');
         return false;
@@ -898,37 +893,48 @@ function addToLibrary(item) {
 function loadLibraryItem(idx) {
     if (idx < 0 || idx >= S.ytLibrary.length) return;
     const item = S.ytLibrary[idx];
-
-    if (item.type === 'playlist') {
-        loadPlaylist(item.id, item.name);
-    } else {
-        loadSingleVideo(item.id, item.name);
-    }
+    if (item.type === 'playlist') loadPlaylist(item.id, item.name);
+    else loadSingleVideo(item.id, item.name);
 }
 
 /* ============================================================
-   QUEUE
+   QUEUE — FIXED
    ============================================================ */
 function updateQueueUI() {
     if (!ytQueueBadge) return;
+
     ytQueueBadge.textContent = S.ytQueue.length;
     ytQueueBadge.classList.toggle('show', S.ytQueue.length > 0);
-    queueInfo.textContent = `${S.ytQueue.length} video${S.ytQueue.length !== 1 ? 's' : ''} in queue`;
+
+    queueInfo.innerHTML = `
+        <i class="fa-solid fa-list" style="color:var(--accent-2);margin-right:6px;"></i>
+        <strong>${S.ytQueue.length}</strong> video${S.ytQueue.length !== 1 ? 's' : ''}
+        ${S.ytIndex >= 0 && S.ytIndex < S.ytQueue.length ? `<span style="color:var(--accent-2);margin-left:6px;">• Now: ${S.ytIndex + 1}</span>` : ''}
+    `;
 
     if (S.ytQueue.length === 0) {
-        ytQueueEl.innerHTML = '<div class="yt-empty-mini">Queue is empty</div>';
+        ytQueueEl.innerHTML = `
+            <div class="yt-empty-mini">
+                Queue is empty<br>
+                <span style="font-size:0.65rem;color:var(--text-dim);">Load a playlist to see videos here</span>
+            </div>
+        `;
         return;
     }
 
     ytQueueEl.innerHTML = S.ytQueue.map((item, idx) => `
         <div class="yt-q-item ${idx === S.ytIndex ? 'current' : ''}" data-idx="${idx}">
             <span class="yt-q-num">${idx + 1}</span>
-            <img class="yt-q-thumb" src="${item.thumb || ''}" alt="" onerror="this.style.display='none'">
+            <img class="yt-q-thumb" 
+                 src="${item.thumb || `https://i.ytimg.com/vi/${item.id}/mqdefault.jpg`}" 
+                 alt=""
+                 loading="lazy"
+                 onerror="this.src='https://i.ytimg.com/vi/${item.id}/default.jpg'">
             <div class="yt-q-info">
-                <div class="yt-q-title">${escapeHtml(item.title || 'Unknown')}</div>
+                <div class="yt-q-title" title="${escapeHtml(item.title || 'Unknown')}">${escapeHtml(item.title || 'Unknown')}</div>
                 <div class="yt-q-channel">${escapeHtml(item.channel || 'YouTube')}</div>
             </div>
-            <button class="yt-q-del" data-idx="${idx}" title="Remove">
+            <button class="yt-q-del" data-idx="${idx}" title="Remove from queue">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -940,28 +946,37 @@ function updateQueueUI() {
             loadQueueItem(+el.dataset.idx);
         });
     });
+
     $$('.yt-q-del').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            removeFromQueue(+btn.dataset.idx);
+            const idx = +btn.dataset.idx;
+            const item = S.ytQueue[idx];
+            removeFromQueue(idx);
+            toast(`Removed: ${item.title?.substring(0, 25) || 'Video'}`, 'info');
         });
     });
-}
 
-function addToQueue(items) {
-    if (!Array.isArray(items)) items = [items];
-    items.forEach(item => {
-        if (!S.ytQueue.some(q => q.id === item.id)) S.ytQueue.push(item);
-    });
-    saveState();
-    updateQueueUI();
-    toast(`Added ${items.length} to queue 📥`, 'success');
+    setTimeout(() => {
+        const current = ytQueueEl.querySelector('.yt-q-item.current');
+        if (current) current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
 }
 
 function removeFromQueue(idx) {
+    if (idx < 0 || idx >= S.ytQueue.length) return;
     S.ytQueue.splice(idx, 1);
+
     if (idx < S.ytIndex) S.ytIndex--;
-    else if (idx === S.ytIndex) S.ytIndex = Math.min(S.ytIndex, S.ytQueue.length - 1);
+    else if (idx === S.ytIndex) {
+        S.ytIndex = Math.min(S.ytIndex, S.ytQueue.length - 1);
+        if (S.ytQueue.length > 0 && S.ytIndex >= 0) {
+            setTimeout(() => loadQueueItem(S.ytIndex), 100);
+        }
+    }
+
+    if (S.ytQueue.length === 0) S.ytIndex = -1;
+
     saveState();
     updateQueueUI();
 }
@@ -1022,7 +1037,7 @@ function nextVideo() {
         nextIdx = S.ytIndex + 1;
         if (nextIdx >= S.ytQueue.length) {
             if (S.ytRepeat === 1) nextIdx = 0;
-            else return;
+            else { toast('End of queue', 'info'); return; }
         }
     }
     loadQueueItem(nextIdx);
@@ -1067,8 +1082,170 @@ function updateRepeatUI() {
     btn.classList.toggle('repeat-one', S.ytRepeat === 2);
 }
 
+/* Queue shuffle / clear */
+$('#queueShuffleBtn').addEventListener('click', () => {
+    if (S.ytQueue.length < 2) return;
+    const current = S.ytQueue[S.ytIndex];
+    for (let i = S.ytQueue.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [S.ytQueue[i], S.ytQueue[j]] = [S.ytQueue[j], S.ytQueue[i]];
+    }
+    S.ytIndex = current ? S.ytQueue.indexOf(current) : 0;
+    saveState();
+    updateQueueUI();
+    toast('Queue shuffled 🔀', 'success');
+});
+$('#queueClearBtn').addEventListener('click', () => {
+    if (S.ytQueue.length === 0) return;
+    if (!confirm(`Clear all ${S.ytQueue.length} videos from queue?`)) return;
+    S.ytQueue = [];
+    S.ytIndex = -1;
+    saveState();
+    updateQueueUI();
+    toast('Queue cleared', 'info');
+});
+
 /* ============================================================
-   LOAD
+   LOAD PLAYLIST — MAIN FIX (with YouTube Data API)
+   ============================================================ */
+async function loadPlaylist(playlistId, customName) {
+    S.ytPlaylistId = playlistId;
+    saveState();
+    ytTitle.textContent = customName || 'Loading playlist…';
+    ytLoading.classList.add('show');
+    hideOverlay();
+
+    toast('Fetching playlist…', 'info');
+
+    try {
+        let items = [];
+
+        // Method 1: Use YouTube Data API if key exists (BEST)
+        if (YT_API.hasKey()) {
+            try {
+                items = await YT_API.getPlaylistItems(playlistId);
+                console.log(`✅ Fetched ${items.length} videos via Data API`);
+            } catch(err) {
+                console.warn('Data API failed:', err.message);
+                toast(`API Error: ${err.message.substring(0, 40)}`, 'warn');
+            }
+        }
+
+        // Method 2: Fallback — use IFrame API after load
+        if (items.length === 0) {
+            console.log('Falling back to IFrame API...');
+            if (!ytApi || !ytIsReady) {
+                loadYTAPI();
+                await new Promise(r => setTimeout(r, 2000));
+            }
+            // Load playlist into player
+            if (ytApi && ytIsReady) {
+                ytApi.loadPlaylist({
+                    list: playlistId,
+                    listType: 'playlist',
+                    index: 0,
+                    startSeconds: 0
+                });
+                await new Promise(r => setTimeout(r, 2500));
+                // Try to get video IDs from player
+                try {
+                    const ids = ytApi.getPlaylist() || [];
+                    if (ids.length > 0) {
+                        items = ids.map(id => ({
+                            id,
+                            title: `Video ${id.substring(0, 6)}…`,
+                            channel: 'Playlist',
+                            thumb: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
+                        }));
+                    }
+                } catch(e) {}
+            }
+        }
+
+        if (items.length === 0) {
+            toast('Could not load videos. Add API key in Settings', 'warn');
+            ytLoading.classList.remove('show');
+            return;
+        }
+
+        // Build queue
+        S.ytQueue = items;
+        S.ytIndex = 0;
+        saveState();
+        updateQueueUI();
+        updateNowPlaying(S.ytQueue[0]);
+        ytIdx.textContent = `1/${S.ytQueue.length}`;
+        ytLoading.classList.remove('show');
+
+        // Load first video
+        if (ytApi && ytIsReady) {
+            try {
+                ytApi.loadVideoById(items[0].id);
+            } catch(e) {}
+        }
+
+        toast(`✅ ${items.length} videos loaded!`, 'success');
+    } catch(err) {
+        console.error('loadPlaylist error:', err);
+        toast('Failed to load playlist', 'warn');
+        ytLoading.classList.remove('show');
+    }
+}
+
+function loadSingleVideo(videoId, customName) {
+    const thumb = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    const fallbackTitle = customName || 'Custom video';
+
+    S.ytQueue = [{
+        id: videoId,
+        title: fallbackTitle,
+        channel: 'YouTube',
+        thumb: thumb
+    }];
+    S.ytIndex = 0;
+    S.ytLastLoaded = videoId;
+    if (customName) S.ytLastName = customName;
+    saveState();
+    updateNowPlaying(S.ytQueue[0]);
+    updateQueueUI();
+
+    if (!ytApi || !ytIsReady) {
+        loadYTAPI();
+        setTimeout(() => {
+            if (ytApi && ytIsReady) {
+                try { ytApi.loadVideoById(videoId); } catch(e) {}
+            }
+        }, 1500);
+        return;
+    }
+
+    hideOverlay();
+    ytLoading.classList.add('show');
+    try {
+        ytApi.loadVideoById(videoId);
+
+        // Fetch real title
+        fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data && S.ytQueue[0]) {
+                    S.ytQueue[0].title = data.title;
+                    S.ytQueue[0].channel = data.author_name;
+                    saveState();
+                    updateQueueUI();
+                    updateNowPlaying(S.ytQueue[0]);
+                }
+            })
+            .catch(() => {});
+
+        toast('Video loaded 🎬', 'music');
+    } catch(err) {
+        toast('Could not load video', 'warn');
+    }
+}
+
+/* ============================================================
+   LOAD FROM URL
    ============================================================ */
 function loadFromUrl(input, save = false) {
     const playlistId = extractPlaylistId(input);
@@ -1094,67 +1271,6 @@ function loadFromUrl(input, save = false) {
     return false;
 }
 
-function loadPlaylist(playlistId, customName) {
-    S.ytPlaylistId = playlistId;
-    saveState();
-    toast('Loading playlist…', 'info');
-
-    if (!ytApi || !ytIsReady) {
-        loadYTAPI();
-        setTimeout(() => loadPlaylist(playlistId, customName), 1500);
-        return;
-    }
-
-    hideOverlay();
-    ytLoading.classList.add('show');
-
-    try {
-        ytApi.loadPlaylist({
-            list: playlistId,
-            listType: 'playlist',
-            index: 0,
-            startSeconds: 0,
-            suggestedQuality: S.ytQuality !== 'default' ? S.ytQuality : 'default'
-        });
-        ytTitle.textContent = customName || 'Playlist';
-        ytIdx.textContent = '🎵 PL';
-        S.ytQueue = [];
-        S.ytIndex = -1;
-        saveState();
-        updateQueueUI();
-        toast('Playlist started 📻', 'music');
-    } catch(err) {
-        console.error('Playlist load failed', err);
-        toast('Could not load playlist', 'warn');
-    }
-}
-
-function loadSingleVideo(videoId, customName) {
-    if (!ytApi || !ytIsReady) {
-        S.ytLastLoaded = videoId;
-        if (customName) S.ytLastName = customName;
-        saveState();
-        loadYTAPI();
-        setTimeout(() => loadSingleVideo(videoId, customName), 1500);
-        return;
-    }
-    hideOverlay();
-    ytLoading.classList.add('show');
-    try {
-        ytApi.loadVideoById(videoId);
-        S.ytQueue = [{ id: videoId, title: customName || 'Custom video', channel: 'YouTube' }];
-        S.ytIndex = 0;
-        S.ytLastLoaded = videoId;
-        if (customName) S.ytLastName = customName;
-        saveState();
-        updateNowPlaying(S.ytQueue[0]);
-        updateQueueUI();
-        toast('Video loaded 🎬', 'music');
-    } catch(err) {
-        toast('Could not load video', 'warn');
-    }
-}
-
 $('#ytSearchBtn').addEventListener('click', () => {
     const input = $('#ytSearchInput').value;
     if (input) {
@@ -1173,8 +1289,6 @@ $('#ytSaveBtn').addEventListener('click', () => {
     const input = $('#ytUrlInput').value;
     if (loadFromUrl(input, true)) $('#ytUrlInput').value = '';
 });
-
-/* First playlist button */
 $('#ytAddFirstBtn').addEventListener('click', () => {
     $$('.yt-tab').forEach(t => t.classList.remove('active'));
     $$('.yt-tab-content').forEach(c => c.classList.remove('active'));
@@ -1252,33 +1366,93 @@ $('#ytQuality').addEventListener('change', (e) => {
     S.ytQuality = e.target.value;
     saveState();
     if (ytApi && ytIsReady) {
-        try {
-            ytApi.setPlaybackQuality(e.target.value === 'default' ? 'default' : e.target.value);
-        } catch(err) {}
+        try { ytApi.setPlaybackQuality(e.target.value); } catch(err) {}
     }
     toast(`Quality: ${e.target.value}`, 'info');
 });
 
-/* QUEUE CLEAR */
-$('#queueClearBtn').addEventListener('click', () => {
-    if (S.ytQueue.length === 0) return;
-    S.ytQueue = [];
-    S.ytIndex = -1;
+/* ============================================================
+   API KEY UI
+   ============================================================ */
+const apiModal = $('#apiModal');
+const apiKeyInput = $('#apiKeyInput');
+const apiKeyStatus = $('#apiKeyStatus');
+
+$('#apiKeyBtn').addEventListener('click', () => {
+    apiKeyInput.value = S.ytApiKey || '';
+    apiKeyStatus.textContent = '';
+    apiKeyStatus.className = 'api-key-status';
+    apiModal.classList.add('show');
+});
+$('#apiModalClose').addEventListener('click', () => apiModal.classList.remove('show'));
+apiModal.addEventListener('click', (e) => {
+    if (e.target === apiModal) apiModal.classList.remove('show');
+});
+
+$('#apiKeySave').addEventListener('click', async () => {
+    const key = apiKeyInput.value.trim();
+    if (!key) {
+        apiKeyStatus.textContent = '⚠️ Key is empty';
+        apiKeyStatus.className = 'api-key-status err';
+        return;
+    }
+    if (key.length < 20) {
+        apiKeyStatus.textContent = '⚠️ Key too short';
+        apiKeyStatus.className = 'api-key-status err';
+        return;
+    }
+
+    apiKeyStatus.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating…';
+    apiKeyStatus.className = 'api-key-status loading';
+
+    const valid = await YT_API.validate(key);
+    if (valid) {
+        S.ytApiKey = key;
+        saveState();
+        apiKeyStatus.innerHTML = '<i class="fa-solid fa-check"></i> Key saved successfully!';
+        apiKeyStatus.className = 'api-key-status ok';
+        $('#apiKeyInline').value = key.substring(0, 12) + '...';
+        setTimeout(() => apiModal.classList.remove('show'), 1200);
+        toast('API Key saved ✅', 'success');
+    } else {
+        apiKeyStatus.innerHTML = '<i class="fa-solid fa-xmark"></i> Invalid key — check again';
+        apiKeyStatus.className = 'api-key-status err';
+    }
+});
+
+$('#apiKeyClear').addEventListener('click', () => {
+    apiKeyInput.value = '';
+    S.ytApiKey = '';
     saveState();
-    updateQueueUI();
-    toast('Queue cleared', 'info');
+    apiKeyStatus.textContent = 'Key cleared';
+    apiKeyStatus.className = 'api-key-status';
+});
+
+$('#apiKeyInlineSave').addEventListener('click', async () => {
+    const key = $('#apiKeyInline').value.trim();
+    if (!key || key.length < 20) {
+        toast('Invalid key', 'warn');
+        return;
+    }
+    const valid = await YT_API.validate(key);
+    if (valid) {
+        S.ytApiKey = key;
+        saveState();
+        toast('API Key saved ✅', 'success');
+    } else {
+        toast('Invalid API key', 'warn');
+    }
 });
 
 /* ============================================================
-   DRAG
+   DRAG / RESIZE
    ============================================================ */
 let dragState = null;
 ytDragbar.addEventListener('mousedown', (e) => {
     if (ytPlayer.classList.contains('fullscreen')) return;
     if (e.target.closest('.yt-drag-actions')) return;
     dragState = {
-        startX: e.clientX,
-        startY: e.clientY,
+        startX: e.clientX, startY: e.clientY,
         startRight: parseInt(getComputedStyle(ytPlayer).right) || 24,
         startBottom: parseInt(getComputedStyle(ytPlayer).bottom) || 24
     };
@@ -1288,10 +1462,8 @@ document.addEventListener('mousemove', (e) => {
     if (!dragState) return;
     const dx = e.clientX - dragState.startX;
     const dy = e.clientY - dragState.startY;
-    let newRight = dragState.startRight - dx;
-    let newBottom = dragState.startBottom - dy;
-    newRight = Math.max(8, Math.min(innerWidth - 100, newRight));
-    newBottom = Math.max(8, Math.min(innerHeight - 60, newBottom));
+    let newRight = Math.max(8, Math.min(innerWidth - 100, dragState.startRight - dx));
+    let newBottom = Math.max(8, Math.min(innerHeight - 60, dragState.startBottom - dy));
     ytPlayer.style.right = newRight + 'px';
     ytPlayer.style.bottom = newBottom + 'px';
     S.ytPos = { right: newRight, bottom: newBottom };
@@ -1300,7 +1472,6 @@ document.addEventListener('mouseup', () => {
     if (dragState) { dragState = null; saveState(); }
 });
 
-/* RESIZE */
 let resizeState = null;
 ytResize.addEventListener('mousedown', (e) => {
     if (ytPlayer.classList.contains('fullscreen')) return;
@@ -1310,8 +1481,7 @@ ytResize.addEventListener('mousedown', (e) => {
 document.addEventListener('mousemove', (e) => {
     if (!resizeState) return;
     const dx = resizeState.startX - e.clientX;
-    let newWidth = resizeState.startWidth + dx;
-    newWidth = Math.max(280, Math.min(600, newWidth));
+    let newWidth = Math.max(280, Math.min(600, resizeState.startWidth + dx));
     ytPlayer.style.width = newWidth + 'px';
     S.ytSize = { width: newWidth };
 });
@@ -1351,7 +1521,8 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'h' || e.key === 'H') ytClose.click();
     if (e.key === 'Escape') {
-        if (ytPlayer.classList.contains('fullscreen')) {
+        if (apiModal.classList.contains('show')) apiModal.classList.remove('show');
+        else if (ytPlayer.classList.contains('fullscreen')) {
             ytPlayer.classList.remove('fullscreen');
             ytFsBtn.innerHTML = '<i class="fa-solid fa-expand"></i>';
         } else if (document.body.classList.contains('focus-mode')) {
@@ -1393,35 +1564,42 @@ function init() {
     renderLibrary();
 
     if (S.ytShuffle) $('#ytShuffleBtn').classList.add('active');
-
     $$('.yt-speed-btns button').forEach(b => {
         b.classList.toggle('active', +b.dataset.speed === S.ytSpeed);
     });
-
     $('#ytQuality').value = S.ytQuality;
     if (S.ytAutoplay) $('#autoplaySwitch').classList.add('active');
     if (S.ytAdBlock !== false) $('#adBlockSwitch').classList.add('active');
 
-    // Init AdBlocker
+    // Inline API key
+    if (S.ytApiKey) {
+        $('#apiKeyInline').value = S.ytApiKey.substring(0, 12) + '...';
+    }
+
     AdBlocker.init();
 
-    // Safety overlay hide
     setTimeout(() => {
         if (ytIsReady || ytApi) hideOverlay();
     }, 2500);
 
     loadYTAPI();
 
-    // Show initial state based on what user has
     if (S.ytQueue.length === 0 && S.ytLibrary.length === 0) {
         ytTitle.textContent = 'No playlist loaded';
-    } else if (S.ytLibrary.length > 0) {
+    } else if (S.ytLibrary.length > 0 && S.ytQueue.length === 0) {
         ytTitle.textContent = 'Your Library';
+    }
+
+    // Show API key warning if missing
+    if (!YT_API.hasKey()) {
+        setTimeout(() => {
+            toast('💡 Add API key for full playlist support', 'info');
+        }, 3000);
     }
 }
 init();
 
-console.log('%c⚡ FocusFlow ULTRA v3.3 — Ad-Free Edition', 'background:linear-gradient(90deg,#7c5cff,#00d4ff,#00ffa3);color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;font-size:14px;');
+console.log('%c⚡ FocusFlow ULTRA v3.4 — Data API Edition', 'background:linear-gradient(90deg,#7c5cff,#00d4ff,#00ffa3);color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;');
 console.log('🛡️ AdBlock: Active');
-console.log('📚 Library: Empty — add your own playlists!');
-console.log('Shortcuts → SPACE:timer  R:reset  F:focus  T:theme  M:play  N:next  P:prev  S:shuffle  Y:min  H:hide  ESC:exit');
+console.log('📚 Queue: Scrollable + Delete enabled');
+console.log('Shortcuts → SPACE:timer R:reset F:focus T:theme M:play N:next P:prev S:shuffle Y:min H:hide');
