@@ -1184,3 +1184,14 @@ body.light .toast-msg { background: rgba(255,255,255,0.95); color: var(--text); 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+/* ============================================================
+   ✅ FIX: Hide hand icon from tap hint
+   ============================================================ */
+.yt-tap-hint i {
+    display: none !important;
+}
+
+/* Optional: পুরো tap hint remove করতে চাইলে */
+.yt-tap-hint {
+    display: none !important;
+}
