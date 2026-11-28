@@ -937,3 +937,118 @@ body.light .yt-queue-header { background: rgba(255,255,255,0.7); }
     .yt-queue { max-height: 260px; }
     .yt-tab-content { max-height: 320px; }
 }
+/* ============================================================
+   v3.5 — Hide YouTube controls + auto-hide UI
+   ============================================================ */
+.yt-click-catcher {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    cursor: pointer;
+    background: transparent;
+}
+.yt-tap-hint {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    background: radial-gradient(circle at center, rgba(0,0,0,0.5), transparent 70%);
+    pointer-events: none;
+    z-index: 8;
+    animation: tapHintFade 0.5s var(--ease);
+}
+.yt-tap-hint.show { display: flex; }
+.yt-tap-hint i {
+    font-size: 1.5rem;
+    animation: tapPulse 2s ease-in-out infinite;
+}
+@keyframes tapPulse {
+    0%,100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.15); opacity: 1; }
+}
+@keyframes tapHintFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.yt-player.ui-hidden .yt-dragbar,
+.yt-player.ui-hidden .yt-bar,
+.yt-player.ui-hidden .yt-transport,
+.yt-player.ui-hidden .yt-progress,
+.yt-player.ui-hidden .yt-expanded-controls,
+.yt-player.ui-hidden .yt-resize {
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+}
+.yt-player .yt-dragbar,
+.yt-player .yt-bar,
+.yt-player .yt-transport,
+.yt-player .yt-progress,
+.yt-player .yt-expanded-controls,
+.yt-player .yt-resize {
+    transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
+}
+.yt-player.ui-hidden {
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05) inset;
+    transform: scale(0.97);
+    transition: all 0.6s var(--ease);
+}
+.yt-player.ui-hidden .yt-frame-wrap {
+    border-radius: 20px;
+    overflow: hidden;
+}
+.yt-player.ui-hidden::before { opacity: 0; }
+.yt-player.ui-hidden .yt-frame-wrap::after {
+    content: '';
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-2);
+    box-shadow: 0 0 12px var(--accent-2);
+    animation: dotPulse 2s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 9;
+}
+@keyframes dotPulse {
+    0%,100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.3); }
+}
+#ytFrame iframe { pointer-events: none; }
+.yt-player.fullscreen.ui-hidden {
+    transform: none;
+}
+.yt-player.fullscreen.ui-hidden .yt-bar,
+.yt-player.fullscreen.ui-hidden .yt-transport {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+.yt-frame-wrap { position: relative; isolation: isolate; }
+.yt-frame-wrap::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 48px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.45), transparent);
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.yt-player.ui-hidden .yt-frame-wrap::before { opacity: 1; }
+
+@media (max-width: 480px) {
+    .yt-tap-hint { font-size: 0.65rem; }
+    .yt-tap-hint i { font-size: 1.2rem; }
+}
